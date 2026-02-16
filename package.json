@@ -1,0 +1,23 @@
+{
+  "name": "kriptografi-hybrid",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "test:hybrid": "node test-hybrid.js"
+  },
+  "dependencies": {
+    "next": "latest",
+    "react": "latest",
+    "react-dom": "latest"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.24",
+    "mongodb": "latest",
+    "postcss": "^8.4.31",
+    "tailwindcss": "3.4.14"
+  }
+}

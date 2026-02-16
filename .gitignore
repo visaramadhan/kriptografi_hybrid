@@ -1,0 +1,13 @@
+# Dependency
+node_modules/
+
+# Build / output Next.js
+.next/
+out/
+
+
+
+# Log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
