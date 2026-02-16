@@ -50,7 +50,8 @@ export default function LogDetailPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Detail Log</h1>
           <p className="mt-1 text-xs text-slate-400">
-            Informasi lengkap satu transaksi enkripsi beserta analisis karakter.
+            Informasi lengkap satu transaksi enkripsi atau pengujian beserta analisis
+            karakter.
           </p>
         </div>
         <Link
@@ -98,6 +99,18 @@ export default function LogDetailPage() {
                 <div className="flex gap-2">
                   <dt className="w-28 text-slate-400">Jenis Proses</dt>
                   <dd className="flex-1">{log.processType}</dd>
+                </div>
+                <div className="flex gap-2">
+                  <dt className="w-28 text-slate-400">Mode Kunci</dt>
+                  <dd className="flex-1">{log.keyMode || "-"}</dd>
+                </div>
+                <div className="flex gap-2">
+                  <dt className="w-28 text-slate-400">Panjang teks</dt>
+                  <dd className="flex-1">
+                    {typeof log.textLength === "number"
+                      ? `${log.textLength} huruf`
+                      : "-"}
+                  </dd>
                 </div>
                 <div className="flex gap-2">
                   <dt className="w-28 text-slate-400">Waktu Proses</dt>
@@ -202,9 +215,66 @@ export default function LogDetailPage() {
               </table>
             )}
           </div>
+
+          {log.metrics && log.processType === "analysis" && (
+            <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-4">
+              <h2 className="text-sm font-semibold text-slate-100">
+                Ringkasan Hasil Pengujian
+              </h2>
+              <p className="mt-1 text-xs text-slate-400">
+                Rata-rata, minimum, dan maksimum waktu enkripsi per algoritma dari
+                pengujian di halaman analisis.
+              </p>
+              <table className="mt-3 w-full border-collapse text-xs">
+                <thead>
+                  <tr>
+                    <th className="border-b border-slate-700 px-2 py-1 text-left text-slate-300">
+                      Algoritma
+                    </th>
+                    <th className="border-b border-slate-700 px-2 py-1 text-right text-slate-300">
+                      Rata-rata (ms)
+                    </th>
+                    <th className="border-b border-slate-700 px-2 py-1 text-right text-slate-300">
+                      Min (ms)
+                    </th>
+                    <th className="border-b border-slate-700 px-2 py-1 text-right text-slate-300">
+                      Max (ms)
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {["caesar", "doubleCaesar", "affine", "hybrid"].map((key) => {
+                    const entry = log.metrics[key]
+                    if (!entry) return null
+                    return (
+                      <tr key={key}>
+                        <td className="px-2 py-1 text-slate-200">
+                          {key === "caesar"
+                            ? "Caesar"
+                            : key === "doubleCaesar"
+                            ? "Double Caesar"
+                            : key === "affine"
+                            ? "Affine"
+                            : "Hybrid"}
+                        </td>
+                        <td className="px-2 py-1 text-right text-slate-200">
+                          {entry.avgTime.toFixed(3)}
+                        </td>
+                        <td className="px-2 py-1 text-right text-slate-200">
+                          {entry.minTime.toFixed(3)}
+                        </td>
+                        <td className="px-2 py-1 text-right text-slate-200">
+                          {entry.maxTime.toFixed(3)}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
     </div>
   )
 }
-

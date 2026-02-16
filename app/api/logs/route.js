@@ -15,9 +15,12 @@ export async function GET() {
       ciphertext: doc.ciphertext,
       mode: doc.mode,
       keys: doc.keys,
-      processType: doc.processType,
+      processType: doc.processType || "encrypt",
       timeMs: doc.timeMs,
       createdAt: doc.createdAt,
+      keyMode: doc.keyMode || null,
+      textLength: doc.textLength || null,
+      source: doc.source || null,
     }))
 
     return Response.json({ logs })
@@ -31,4 +34,3 @@ export async function GET() {
     )
   }
 }
-

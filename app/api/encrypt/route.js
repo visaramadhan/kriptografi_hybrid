@@ -4,7 +4,17 @@ import { encryptHybrid } from "@/lib/hybrid"
 import { getLogsCollection } from "@/lib/mongodb"
 
 export async function POST(req) {
-  const { text, mode = "hybrid", a, b, k1, k2 } = await req.json()
+  const body = await req.json()
+  const {
+    text,
+    mode = "hybrid",
+    a,
+    b,
+    k1,
+    k2,
+    keyMode,
+    source,
+  } = body
 
   const start = Date.now()
 
@@ -33,6 +43,9 @@ export async function POST(req) {
       keys: { a, b, k1, k2 },
       processType: "encrypt",
       timeMs,
+      keyMode: keyMode || null,
+      textLength: typeof text === "string" ? text.replace(/[^A-Za-z]/g, "").length : null,
+      source: source || "dashboard",
       createdAt: new Date(),
     }
     const insertResult = await collection.insertOne(doc)

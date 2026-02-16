@@ -1,12 +1,38 @@
 "use client"
 
 import Link from "next/link"
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 
 export default function LogsPage() {
   const [logs, setLogs] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+
+  const summary = useMemo(() => {
+    if (!logs.length) return []
+    const map = new Map()
+    for (const log of logs) {
+      if (typeof log.timeMs !== "number") continue
+      const key = `${log.mode || "unknown"}:${log.processType || "encrypt"}`
+      const existing = map.get(key) || {
+        mode: log.mode || "unknown",
+        processType: log.processType || "encrypt",
+        count: 0,
+        total: 0,
+        min: Number.POSITIVE_INFINITY,
+        max: 0,
+      }
+      existing.count += 1
+      existing.total += log.timeMs
+      existing.min = Math.min(existing.min, log.timeMs)
+      existing.max = Math.max(existing.max, log.timeMs)
+      map.set(key, existing)
+    }
+    return Array.from(map.values()).map((entry) => ({
+      ...entry,
+      avg: entry.total / entry.count,
+    }))
+  }, [logs])
 
   useEffect(() => {
     async function load() {
@@ -76,6 +102,9 @@ export default function LogsPage() {
                   Metode
                 </th>
                 <th className="px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                  Jenis
+                </th>
+                <th className="px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                   Plaintext
                 </th>
                 <th className="px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">
@@ -101,6 +130,9 @@ export default function LogsPage() {
                   <td className="px-3 py-2 align-top text-slate-700">{idx + 1}</td>
                   <td className="px-3 py-2 align-top text-[11px] font-semibold uppercase text-slate-600">
                     {log.mode}
+                  </td>
+                  <td className="px-3 py-2 align-top text-[11px] uppercase text-slate-600">
+                    {log.processType}
                   </td>
                   <td className="px-3 py-2 align-top max-w-xs text-slate-700">
                     <span className="line-clamp-2">{log.plaintext}</span>
@@ -128,6 +160,62 @@ export default function LogsPage() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {!loading && !error && logs.length > 0 && summary.length > 0 && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 text-xs text-slate-700 shadow-sm">
+          <h2 className="text-sm font-semibold text-slate-900">
+            Ringkasan Analisis dari Semua Log
+          </h2>
+          <p className="mt-1 text-[11px] text-slate-500">
+            Rata-rata waktu proses per kombinasi metode dan jenis proses berdasarkan semua
+            log yang tersimpan.
+          </p>
+          <div className="mt-3 overflow-x-auto">
+            <table className="min-w-full text-[11px]">
+              <thead className="bg-slate-50">
+                <tr>
+                  <th className="px-3 py-2 text-left font-semibold uppercase tracking-wide text-slate-500">
+                    Metode
+                  </th>
+                  <th className="px-3 py-2 text-left font-semibold uppercase tracking-wide text-slate-500">
+                    Jenis
+                  </th>
+                  <th className="px-3 py-2 text-right font-semibold uppercase tracking-wide text-slate-500">
+                    Jumlah
+                  </th>
+                  <th className="px-3 py-2 text-right font-semibold uppercase tracking-wide text-slate-500">
+                    Rata-rata (ms)
+                  </th>
+                  <th className="px-3 py-2 text-right font-semibold uppercase tracking-wide text-slate-500">
+                    Min (ms)
+                  </th>
+                  <th className="px-3 py-2 text-right font-semibold uppercase tracking-wide text-slate-500">
+                    Max (ms)
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {summary.map((row) => (
+                  <tr key={`${row.mode}:${row.processType}`} className="border-t border-slate-100">
+                    <td className="px-3 py-2 text-slate-700">{row.mode}</td>
+                    <td className="px-3 py-2 text-slate-700">{row.processType}</td>
+                    <td className="px-3 py-2 text-right text-slate-700">{row.count}</td>
+                    <td className="px-3 py-2 text-right font-mono text-slate-800">
+                      {row.avg.toFixed(3)}
+                    </td>
+                    <td className="px-3 py-2 text-right font-mono text-slate-800">
+                      {row.min.toFixed(3)}
+                    </td>
+                    <td className="px-3 py-2 text-right font-mono text-slate-800">
+                      {row.max.toFixed(3)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

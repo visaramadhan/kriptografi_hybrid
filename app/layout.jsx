@@ -20,6 +20,12 @@ export default function RootLayout({ children }) {
                 <Link href="/" className="transition-colors hover:text-blue-600">
                   Dashboard
                 </Link>
+                <Link
+                  href="/campus-sim"
+                  className="transition-colors hover:text-blue-600"
+                >
+                  Simulasi Kampus
+                </Link>
                 <Link href="/analysis" className="transition-colors hover:text-blue-600">
                   Analisis
                 </Link>

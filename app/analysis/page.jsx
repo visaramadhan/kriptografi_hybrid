@@ -23,6 +23,7 @@ export default function AnalysisPage() {
   const [k1, setK1] = useState(3)
   const [k2, setK2] = useState(7)
   const [runs, setRuns] = useState(5)
+  const [keyMode, setKeyMode] = useState("manual")
   const [results, setResults] = useState(null)
 
   const summary = useMemo(() => {
@@ -68,7 +69,26 @@ export default function AnalysisPage() {
     }))
   }, [results])
 
-  const runAnalysis = () => {
+  const runAnalysis = async () => {
+    let aUsed = a
+    let bUsed = b
+    let k1Used = k1
+    let k2Used = k2
+
+    if (keyMode === "random") {
+      aUsed =
+        invertibleAValues[Math.floor(Math.random() * invertibleAValues.length)]
+      bUsed = Math.floor(Math.random() * 26)
+      k1Used = Math.floor(Math.random() * 26)
+      k2Used = Math.floor(Math.random() * 26)
+    } else if (keyMode === "timestamp") {
+      const now = Date.now()
+      aUsed = invertibleAValues[now % invertibleAValues.length]
+      bUsed = now % 26
+      k1Used = (now >> 3) % 26
+      k2Used = (now >> 5) % 26
+    }
+
     const executions = {
       caesar: { times: [], cipher: "", freq: [] },
       doubleCaesar: { times: [], cipher: "", freq: [] },
@@ -80,28 +100,31 @@ export default function AnalysisPage() {
 
     for (let i = 0; i < iterations; i++) {
       let start = performance.now()
-      const caesar = encryptCaesar(text, k1)
+      const caesar = encryptCaesar(text, k1Used)
       let end = performance.now()
       executions.caesar.times.push(end - start)
       executions.caesar.cipher = caesar
       executions.caesar.freq = frequencyMap(caesar)
 
       start = performance.now()
-      const doubleCaesar = encryptCaesar(encryptCaesar(text, k1), k2)
+      const doubleCaesar = encryptCaesar(
+        encryptCaesar(text, k1Used),
+        k2Used
+      )
       end = performance.now()
       executions.doubleCaesar.times.push(end - start)
       executions.doubleCaesar.cipher = doubleCaesar
       executions.doubleCaesar.freq = frequencyMap(doubleCaesar)
 
       start = performance.now()
-      const affine = encryptAffine(text, a, b)
+      const affine = encryptAffine(text, aUsed, bUsed)
       end = performance.now()
       executions.affine.times.push(end - start)
       executions.affine.cipher = affine
       executions.affine.freq = frequencyMap(affine)
 
       start = performance.now()
-      const hybrid = encryptHybrid(text, a, b, k1, k2)
+      const hybrid = encryptHybrid(text, aUsed, bUsed, k1Used, k2Used)
       end = performance.now()
       executions.hybrid.times.push(end - start)
       executions.hybrid.cipher = hybrid
@@ -134,6 +157,26 @@ export default function AnalysisPage() {
     }
 
     setResults(aggregated)
+
+    try {
+      const normalizedLength = text
+        ? text.toUpperCase().replace(/[^A-Z]/g, "").length
+        : 0
+      await fetch("/api/experiment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "analysis",
+          text,
+          textLength: normalizedLength,
+          keyMode,
+          keys: { a: aUsed, b: bUsed, k1: k1Used, k2: k2Used },
+          source: "analysis-page",
+          metrics: aggregated,
+        }),
+      })
+    } catch (e) {
+    }
   }
 
   const bestKey = useMemo(() => {
@@ -228,6 +271,48 @@ export default function AnalysisPage() {
                   onChange={(e) => setRuns(e.target.value)}
                   className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 />
+              </div>
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-3">
+              <div className="space-y-1">
+                <label className="text-[11px] font-medium text-slate-500">
+                  Mode kunci
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setKeyMode("manual")}
+                    className={`flex-1 rounded-full border px-3 py-1.5 text-[11px] font-medium transition ${
+                      keyMode === "manual"
+                        ? "border-blue-500 bg-blue-50 text-blue-700"
+                        : "border-slate-200 bg-white text-slate-600 hover:border-blue-200"
+                    }`}
+                  >
+                    Manual
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setKeyMode("random")}
+                    className={`flex-1 rounded-full border px-3 py-1.5 text-[11px] font-medium transition ${
+                      keyMode === "random"
+                        ? "border-blue-500 bg-blue-50 text-blue-700"
+                        : "border-slate-200 bg-white text-slate-600 hover:border-blue-200"
+                    }`}
+                  >
+                    Random
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setKeyMode("timestamp")}
+                    className={`flex-1 rounded-full border px-3 py-1.5 text-[11px] font-medium transition ${
+                      keyMode === "timestamp"
+                        ? "border-blue-500 bg-blue-50 text-blue-700"
+                        : "border-slate-200 bg-white text-slate-600 hover:border-blue-200"
+                    }`}
+                  >
+                    Timestamp
+                  </button>
+                </div>
               </div>
             </div>
             <div className="mt-4 flex flex-wrap gap-3">

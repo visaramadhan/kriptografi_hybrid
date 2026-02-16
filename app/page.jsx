@@ -116,10 +116,13 @@ export default function Home() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         text,
+        mode,
         a,
         b,
         k1,
         k2,
+        keyMode,
+        source: "dashboard",
       }),
     })
 
