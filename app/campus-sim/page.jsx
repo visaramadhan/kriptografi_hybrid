@@ -7,6 +7,13 @@ import { encryptHybrid } from "@/lib/hybrid.js"
 
 const invertibleAValues = [1, 3, 5, 7, 9, 11, 15, 17, 19, 21, 23, 25]
 
+function cipherStats(text) {
+  const normalized = (text || "").toUpperCase().replace(/[^A-Z]/g, "")
+  const length = normalized.length
+  const uniqueChars = normalized ? new Set(normalized.split("")).size : 0
+  return { length, uniqueChars }
+}
+
 const sampleRecords = [
   {
     id: 1,
@@ -38,6 +45,9 @@ export default function CampusSimPage() {
   const [decrypted, setDecrypted] = useState("")
   const [encryptTime, setEncryptTime] = useState(null)
   const [decryptTime, setDecryptTime] = useState(null)
+
+  const plaintextStats = cipherStats(plaintext)
+  const ciphertextStats = cipherStats(ciphertext)
 
   const buildPlaintext = () => {
     if (field === "profile") {
@@ -350,22 +360,76 @@ export default function CampusSimPage() {
 
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="text-sm font-semibold text-slate-900">
-              Interpretasi Penelitian
+              Dimensi Penelitian
             </h2>
-            <ul className="mt-3 list-disc space-y-2 pl-4 text-[11px] text-slate-600">
-              <li>
-                Menunjukkan bagaimana model kriptografi hybrid diterapkan pada data teks
-                sensitif seperti NIM dan nilai.
-              </li>
-              <li>
-                Mengilustrasikan dampak manajemen kunci dinamis (Random/Timestamp) pada
-                variasi ciphertext untuk data akademik yang mirip real-time.
-              </li>
-              <li>
-                Menghubungkan efektivitas Double Caesar sebagai bagian dari skema Hybrid
-                untuk transaksi akademik yang berulang.
-              </li>
-            </ul>
+            <div className="mt-3 space-y-2 text-[11px] text-slate-600">
+              <div>
+                <p className="font-semibold text-slate-800">
+                  Implementasi Kriptografi Hybrid
+                </p>
+                <p>
+                  Mode algoritma saat ini:{" "}
+                  <span className="font-mono">
+                    {mode === "hybrid"
+                      ? "Hybrid (Affine + Double Caesar)"
+                      : mode}
+                  </span>
+                  . Pilih Hybrid untuk mensimulasikan model kriptografi hybrid penuh.
+                </p>
+              </div>
+              <div>
+                <p className="font-semibold text-slate-800">
+                  Manajemen Kunci Dinamis
+                </p>
+                <p>
+                  Mode kunci: <span className="font-mono">{keyMode}</span> dengan nilai{" "}
+                  <span className="font-mono">
+                    a={a}, b={b}, k1={k1}, k2={k2}
+                  </span>
+                  . Random dan Timestamp merepresentasikan skema kunci dinamis.
+                </p>
+              </div>
+              <div>
+                <p className="font-semibold text-slate-800">Keamanan Data</p>
+                <p>
+                  Panjang plaintext:{" "}
+                  <span className="font-mono">
+                    {plaintextStats.length} huruf, unik {plaintextStats.uniqueChars}
+                  </span>
+                  . Panjang ciphertext:{" "}
+                  <span className="font-mono">
+                    {ciphertextStats.length} huruf, unik {ciphertextStats.uniqueChars}
+                  </span>
+                  . Semakin panjang dan semakin banyak huruf unik, pola lebih sulit
+                  dianalisis.
+                </p>
+              </div>
+              <div>
+                <p className="font-semibold text-slate-800">Waktu Akses Data</p>
+                <p>
+                  Waktu enkripsi:{" "}
+                  <span className="font-mono">
+                    {encryptTime != null ? `${encryptTime.toFixed(3)} ms` : "–"}
+                  </span>
+                  . Waktu dekripsi:{" "}
+                  <span className="font-mono">
+                    {decryptTime != null ? `${decryptTime.toFixed(3)} ms` : "–"}
+                  </span>
+                  . Nilai ini menggambarkan seberapa cepat data akademik dapat
+                  diakses dalam bentuk terenkripsi.
+                </p>
+              </div>
+              <div>
+                <p className="font-semibold text-slate-800">
+                  Efisiensi Pemrosesan Sistem
+                </p>
+                <p>
+                  Penggabungan panjang teks dan waktu proses di atas dapat digunakan
+                  untuk menilai efisiensi Hybrid dan Double Caesar pada skenario sistem
+                  informasi kampus yang real-time.
+                </p>
+              </div>
+            </div>
           </div>
         </section>
       </div>

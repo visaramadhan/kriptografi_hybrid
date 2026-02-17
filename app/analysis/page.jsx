@@ -26,6 +26,13 @@ export default function AnalysisPage() {
   const [keyMode, setKeyMode] = useState("manual")
   const [results, setResults] = useState(null)
 
+  const inputStats = useMemo(() => {
+    const normalized = text.toUpperCase().replace(/[^A-Z]/g, "")
+    const length = normalized.length
+    const uniqueChars = normalized ? new Set(normalized.split("")).size : 0
+    return { length, uniqueChars }
+  }, [text])
+
   const summary = useMemo(() => {
     if (!results) return null
     const baseline = results.caesar.avgTime
@@ -411,6 +418,81 @@ export default function AnalysisPage() {
                   dengan waktu sekitar {bestKey.avgTime.toFixed(3)} ms.
                 </p>
               )}
+            </div>
+          )}
+
+          {results && summary && (
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <h2 className="text-sm font-semibold text-slate-900">
+                Dimensi Penelitian
+              </h2>
+              <div className="mt-3 space-y-2 text-[11px] text-slate-600">
+                <div>
+                  <p className="font-semibold text-slate-800">
+                    Implementasi Kriptografi Hybrid
+                  </p>
+                  <p>
+                    Pengujian selalu menyertakan algoritma Hybrid bersama Caesar, Double
+                    Caesar, dan Affine. Waktu rata-rata Hybrid saat ini sekitar{" "}
+                    <span className="font-mono">
+                      {results.hybrid.avgTime.toFixed(3)} ms
+                    </span>
+                    .
+                  </p>
+                </div>
+                <div>
+                  <p className="font-semibold text-slate-800">
+                    Manajemen Kunci Dinamis
+                  </p>
+                  <p>
+                    Mode kunci: <span className="font-mono">{keyMode}</span>. Nilai kunci
+                    yang digunakan pada pengujian ini adalah{" "}
+                    <span className="font-mono">
+                      a={a}, b={b}, k1={k1}, k2={k2}
+                    </span>
+                    , merepresentasikan skema kunci statis atau dinamis.
+                  </p>
+                </div>
+                <div>
+                  <p className="font-semibold text-slate-800">Keamanan Data</p>
+                  <p>
+                    Panjang teks uji:{" "}
+                    <span className="font-mono">
+                      {inputStats.length} huruf, unik {inputStats.uniqueChars}
+                    </span>
+                    . Distribusi frekuensi ciphertext untuk tiap algoritma ditampilkan di
+                    panel kanan sehingga memudahkan analisis ketahanan terhadap serangan
+                    berbasis frekuensi.
+                  </p>
+                </div>
+                <div>
+                  <p className="font-semibold text-slate-800">Waktu Akses Data</p>
+                  <p>
+                    Tabel ringkasan menunjukkan rata-rata waktu enkripsi per algoritma.
+                    Hybrid memiliki waktu sekitar{" "}
+                    <span className="font-mono">
+                      {results.hybrid.avgTime.toFixed(3)} ms
+                    </span>{" "}
+                    untuk teks di atas, yang dapat dibandingkan dengan algoritma lain
+                    sebagai indikator waktu akses data terenkripsi.
+                  </p>
+                </div>
+                <div>
+                  <p className="font-semibold text-slate-800">
+                    Efisiensi Pemrosesan Sistem
+                  </p>
+                  <p>
+                    Algoritma tercepat adalah{" "}
+                    <span className="font-mono">{bestKey.label}</span> dengan rata-rata{" "}
+                    <span className="font-mono">
+                      {bestKey.avgTime.toFixed(3)} ms
+                    </span>
+                    . Perbandingan nilai rata-rata, minimum, dan maksimum di tabel di atas
+                    merepresentasikan efisiensi pemrosesan sistem untuk masing-masing
+                    algoritma.
+                  </p>
+                </div>
+              </div>
             </div>
           )}
         </section>

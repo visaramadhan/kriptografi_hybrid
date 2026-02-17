@@ -193,6 +193,43 @@ export default function DocumentationPage() {
             </li>
           </ol>
         </section>
+
+        <section className="space-y-3">
+          <h2 className="text-base font-semibold text-slate-900">
+            8. Pengujian Entropy, Brute Force, dan Load Testing
+          </h2>
+          <ul className="list-disc space-y-1 pl-5 text-xs text-slate-600">
+            <li>
+              <span className="font-semibold">Entropy kunci otomatis</span>: halaman{" "}
+              <span className="font-mono">/logs</span> menampilkan kartu{" "}
+              <span className="font-semibold">Entropy Kunci</span> yang menghitung entropy
+              Shannon dari distribusi kombinasi kunci (a, b, k1, k2) berdasarkan seluruh
+              log yang tersimpan.
+            </li>
+            <li>
+              <span className="font-semibold">Modul attacker (brute force)</span>: halaman{" "}
+              <span className="font-mono">/attacker</span> menyediakan simulasi brute force
+              terhadap Caesar untuk mengukur jumlah kombinasi kunci yang diuji dan waktu
+              serangan, serta mengilustrasikan mengapa ruang kunci Hybrid jauh lebih besar.
+            </li>
+            <li>
+              <span className="font-semibold">Jumlah permintaan per jam</span>: halaman{" "}
+              <span className="font-mono">/logs</span> juga menampilkan estimasi rata-rata
+              permintaan per jam yang dihitung dari rentang waktu antara log pertama dan
+              terakhir.
+            </li>
+            <li>
+              <span className="font-semibold">Load testing endpoint</span>: untuk menguji
+              kapasitas sistem, dapat digunakan tool eksternal seperti{" "}
+              <span className="font-mono">k6</span>, <span className="font-mono">JMeter</span>
+              , atau <span className="font-mono">autocannon</span> dengan menargetkan
+              endpoint <span className="font-mono">/api/encrypt</span> memakai payload JSON{" "}
+              <span className="font-mono">{`{ text, mode, a, b, k1, k2 }`}</span>. Hasil
+              permintaan yang sukses akan tercatat sebagai log dan dapat dianalisis melalui
+              halaman <span className="font-mono">/logs</span>.
+            </li>
+          </ul>
+        </section>
       </div>
     </div>
   )

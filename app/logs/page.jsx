@@ -34,6 +34,63 @@ export default function LogsPage() {
     }))
   }, [logs])
 
+  const entropyAndThroughput = useMemo(() => {
+    if (!logs.length) {
+      return {
+        entropy: null,
+        maxEntropy: null,
+        requestsPerHour: null,
+        spanHours: null,
+      }
+    }
+
+    const keyCounts = new Map()
+    let totalWithKeys = 0
+
+    for (const log of logs) {
+      if (!log.keys) continue
+      const { a, b, k1, k2 } = log.keys
+      const sig = `${a ?? "-"}-${b ?? "-"}-${k1 ?? "-"}-${k2 ?? "-"}`
+      keyCounts.set(sig, (keyCounts.get(sig) || 0) + 1)
+      totalWithKeys += 1
+    }
+
+    let entropy = null
+    let maxEntropy = null
+    if (totalWithKeys > 0) {
+      let h = 0
+      for (const count of keyCounts.values()) {
+        const p = count / totalWithKeys
+        h += -p * Math.log2(p)
+      }
+      entropy = h
+      maxEntropy = Math.log2(keyCounts.size)
+    }
+
+    const timestamps = logs
+      .map((log) => (log.createdAt ? new Date(log.createdAt).getTime() : null))
+      .filter((t) => typeof t === "number")
+
+    let requestsPerHour = null
+    let spanHours = null
+    if (timestamps.length >= 2) {
+      const minTime = Math.min(...timestamps)
+      const maxTime = Math.max(...timestamps)
+      const spanMs = maxTime - minTime
+      if (spanMs > 0) {
+        spanHours = spanMs / (1000 * 60 * 60)
+        requestsPerHour = logs.length / spanHours
+      }
+    }
+
+    return {
+      entropy,
+      maxEntropy,
+      requestsPerHour,
+      spanHours,
+    }
+  }, [logs])
+
   useEffect(() => {
     async function load() {
       try {
@@ -215,6 +272,83 @@ export default function LogsPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {!loading && !error && logs.length > 0 && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 text-xs text-slate-700 shadow-sm">
+          <h2 className="text-sm font-semibold text-slate-900">
+            Entropy Kunci & Perkiraan Permintaan per Jam
+          </h2>
+          <p className="mt-1 text-[11px] text-slate-500">
+            Menggambarkan sebaran penggunaan kunci dan estimasi beban permintaan berdasarkan
+            histori log yang tersimpan.
+          </p>
+          <div className="mt-3 grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <h3 className="text-xs font-semibold text-slate-800">
+                Entropy Kunci (Shannon)
+              </h3>
+              {entropyAndThroughput.entropy == null ? (
+                <p className="text-[11px] text-slate-500">
+                  Belum cukup data kunci untuk menghitung entropy.
+                </p>
+              ) : (
+                <div className="space-y-1 text-[11px] text-slate-600">
+                  <p>
+                    Entropy aktual:{" "}
+                    <span className="font-mono text-blue-700">
+                      {entropyAndThroughput.entropy.toFixed(3)} bit
+                    </span>
+                  </p>
+                  <p>
+                    Entropy maksimum berdasarkan jumlah kombinasi kunci unik yang pernah
+                    muncul:{" "}
+                    <span className="font-mono text-slate-800">
+                      {entropyAndThroughput.maxEntropy.toFixed(3)} bit
+                    </span>
+                    .
+                  </p>
+                  <p>
+                    Semakin mendekati nilai maksimum, semakin merata penggunaan kombinasi
+                    kunci pada skema manajemen kunci dinamis.
+                  </p>
+                </div>
+              )}
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-xs font-semibold text-slate-800">
+                Perkiraan Permintaan per Jam
+              </h3>
+              {entropyAndThroughput.requestsPerHour == null ? (
+                <p className="text-[11px] text-slate-500">
+                  Belum cukup data waktu (minimal dua log dengan timestamp berbeda)
+                  untuk menghitung estimasi ini.
+                </p>
+              ) : (
+                <div className="space-y-1 text-[11px] text-slate-600">
+                  <p>
+                    Perkiraan permintaan per jam (rata-rata):{" "}
+                    <span className="font-mono text-blue-700">
+                      {entropyAndThroughput.requestsPerHour.toFixed(2)} permintaan/jam
+                    </span>
+                    .
+                  </p>
+                  <p>
+                    Estimasi dihitung dari {logs.length} log dalam rentang waktu sekitar{" "}
+                    <span className="font-mono">
+                      {entropyAndThroughput.spanHours.toFixed(2)} jam
+                    </span>
+                    .
+                  </p>
+                  <p>
+                    Nilai ini dapat dibandingkan dengan hasil uji load testing untuk
+                    memvalidasi kapasitas sistem pada skenario beban tinggi.
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
