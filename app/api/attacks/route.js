@@ -1,4 +1,5 @@
 import { getAttacksCollection } from "@/lib/mongodb"
+export const runtime = "nodejs"
 
 export async function GET() {
   try {
@@ -79,4 +80,3 @@ export async function POST(req) {
     )
   }
 }
-

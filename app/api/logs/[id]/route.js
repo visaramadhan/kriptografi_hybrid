@@ -1,4 +1,5 @@
 import { getLogsCollection, toObjectId } from "@/lib/mongodb"
+export const runtime = "nodejs"
 
 export async function GET(req, { params }) {
   try {
@@ -55,4 +56,3 @@ export async function GET(req, { params }) {
     )
   }
 }
-

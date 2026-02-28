@@ -1,4 +1,5 @@
 import { getLogsCollection } from "@/lib/mongodb"
+export const runtime = "nodejs"
 
 export async function GET(request) {
   try {

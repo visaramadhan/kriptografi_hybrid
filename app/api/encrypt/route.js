@@ -2,6 +2,7 @@ import { encryptCaesar } from "@/lib/caesar"
 import { encryptAffine } from "@/lib/affine"
 import { encryptHybrid } from "@/lib/hybrid"
 import { getLogsCollection } from "@/lib/mongodb"
+export const runtime = "nodejs"
 
 export async function POST(req) {
   const body = await req.json()
