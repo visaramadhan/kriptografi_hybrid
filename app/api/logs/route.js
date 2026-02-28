@@ -9,26 +9,55 @@ export async function GET(request) {
     
     let limit = 100
     if (limitParam !== null) {
-      const parsed = parseInt(limitParam)
+      const parsed = parseInt(limitParam, 10)
       if (!isNaN(parsed)) {
         limit = parsed
       }
     }
+    if (limit > 5000) {
+      limit = 5000
+    }
 
     const query = {}
     if (startDate || endDate) {
-      query.createdAt = {}
+      let startJsDate = null
+      let endJsDate = null
+
       if (startDate) {
-        query.createdAt.$gte = new Date(startDate)
-      }
-      if (endDate) {
-        const end = new Date(endDate)
-        // Set to end of day if only date is provided
-        if (endDate.length <= 10) {
-           end.setHours(23, 59, 59, 999)
+        const d = new Date(startDate)
+        if (isNaN(d.getTime())) {
+          return new Response(
+            JSON.stringify({ error: "Format startDate tidak valid" }),
+            { status: 400, headers: { "Content-Type": "application/json" } },
+          )
         }
-        query.createdAt.$lte = end
+        startJsDate = d
       }
+
+      if (endDate) {
+        const d = new Date(endDate)
+        if (isNaN(d.getTime())) {
+          return new Response(
+            JSON.stringify({ error: "Format endDate tidak valid" }),
+            { status: 400, headers: { "Content-Type": "application/json" } },
+          )
+        }
+        if (/^\d{4}-\d{2}-\d{2}$/.test(endDate)) {
+          d.setHours(23, 59, 59, 999)
+        }
+        endJsDate = d
+      }
+
+      if (startJsDate && endJsDate && startJsDate > endJsDate) {
+        return new Response(
+          JSON.stringify({ error: "startDate harus ≤ endDate" }),
+          { status: 400, headers: { "Content-Type": "application/json" } },
+        )
+      }
+
+      query.createdAt = {}
+      if (startJsDate) query.createdAt.$gte = startJsDate
+      if (endJsDate) query.createdAt.$lte = endJsDate
     }
 
     const collection = await getLogsCollection()
@@ -57,6 +86,7 @@ export async function GET(request) {
 
     return Response.json({ logs })
   } catch (e) {
+    console.error("GET /api/logs error:", e)
     return new Response(
       JSON.stringify({ error: "Gagal mengambil log", details: e.message }),
       {
