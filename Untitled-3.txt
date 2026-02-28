@@ -1,0 +1,119 @@
+"use client"
+
+import Link from "next/link"
+import { useEffect, useState } from "react"
+
+export default function LogsPage() {
+  const [logs, setLogs] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const res = await fetch("/api/logs")
+        if (!res.ok) {
+          throw new Error("Gagal memuat data log")
+        }
+        const data = await res.json()
+        setLogs(data.logs || [])
+      } catch (e) {
+        setError(e.message)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    load()
+  }, [])
+
+  return (
+    <div className="w-full space-y-4">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Log Enkripsi</h1>
+          <p className="mt-1 text-xs text-slate-400">
+            Histori enkripsi dari API server yang disimpan di MongoDB.
+          </p>
+        </div>
+        <Link
+          href="/"
+          className="rounded-md border border-slate-700 px-3 py-1.5 text-xs font-medium text-slate-100 hover:bg-slate-800"
+        >
+          ← Kembali ke Dashboard
+        </Link>
+      </div>
+
+      {loading && (
+        <div className="rounded-md border border-slate-800 bg-slate-900/60 px-4 py-6 text-xs text-slate-300">
+          Memuat data log...
+        </div>
+      )}
+
+      {error && !loading && (
+        <div className="rounded-md border border-red-500/40 bg-red-500/10 px-4 py-3 text-xs text-red-200">
+          {error}
+        </div>
+      )}
+
+      {!loading && !error && logs.length === 0 && (
+        <div className="rounded-md border border-slate-800 bg-slate-900/60 px-4 py-6 text-xs text-slate-300">
+          Belum ada log enkripsi yang tersimpan.
+        </div>
+      )}
+
+      {!loading && !error && logs.length > 0 && (
+        <div className="overflow-x-auto rounded-lg border border-slate-800 bg-slate-900/60">
+          <table className="min-w-full text-xs">
+            <thead className="bg-slate-900/80">
+              <tr>
+                <th className="px-3 py-2 text-left font-medium text-slate-300">No</th>
+                <th className="px-3 py-2 text-left font-medium text-slate-300">Metode</th>
+                <th className="px-3 py-2 text-left font-medium text-slate-300">Plaintext</th>
+                <th className="px-3 py-2 text-left font-medium text-slate-300">Ciphertext</th>
+                <th className="px-3 py-2 text-left font-medium text-slate-300">Waktu (ms)</th>
+                <th className="px-3 py-2 text-left font-medium text-slate-300">Timestamp</th>
+                <th className="px-3 py-2 text-right font-medium text-slate-300">Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {logs.map((log, idx) => (
+                <tr
+                  key={log.id}
+                  className="border-t border-slate-800 hover:bg-slate-800/60"
+                >
+                  <td className="px-3 py-2 align-top text-slate-300">{idx + 1}</td>
+                  <td className="px-3 py-2 align-top uppercase text-slate-200">
+                    {log.mode}
+                  </td>
+                  <td className="px-3 py-2 align-top max-w-xs text-slate-300">
+                    <span className="line-clamp-2">{log.plaintext}</span>
+                  </td>
+                  <td className="px-3 py-2 align-top max-w-xs font-mono text-[11px] text-slate-200">
+                    <span className="line-clamp-2">{log.ciphertext}</span>
+                  </td>
+                  <td className="px-3 py-2 align-top text-slate-300">
+                    {typeof log.timeMs === "number" ? log.timeMs.toFixed(3) : "-"}
+                  </td>
+                  <td className="px-3 py-2 align-top text-slate-300">
+                    {log.createdAt
+                      ? new Date(log.createdAt).toLocaleString()
+                      : "-"}
+                  </td>
+                  <td className="px-3 py-2 align-top text-right">
+                    <Link
+                      href={`/logs/${log.id}`}
+                      className="rounded-md border border-slate-700 px-2 py-1 text-[11px] font-medium text-indigo-300 hover:bg-slate-800"
+                    >
+                      Detail
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}

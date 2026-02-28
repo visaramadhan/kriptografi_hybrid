@@ -2,11 +2,15 @@
 
 import Link from "next/link"
 import { useEffect, useMemo, useState } from "react"
+import * as XLSX from "xlsx"
 
 export default function LogsPage() {
   const [logs, setLogs] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  
+  const [startDate, setStartDate] = useState("")
+  const [endDate, setEndDate] = useState("")
 
   const summary = useMemo(() => {
     if (!logs.length) return []
@@ -91,24 +95,76 @@ export default function LogsPage() {
     }
   }, [logs])
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const res = await fetch("/api/logs")
-        if (!res.ok) {
-          throw new Error("Gagal memuat data log")
-        }
-        const data = await res.json()
-        setLogs(data.logs || [])
-      } catch (e) {
-        setError(e.message)
-      } finally {
-        setLoading(false)
+  async function loadLogs(withFilter = false) {
+    setLoading(true)
+    setError(null)
+    try {
+      const params = new URLSearchParams()
+      if (withFilter) {
+          if (startDate) params.append("startDate", startDate)
+          if (endDate) params.append("endDate", endDate)
+          // Increase limit for filtered view to show more relevant data
+          params.append("limit", "1000")
       }
+      const res = await fetch(`/api/logs?${params.toString()}`)
+      if (!res.ok) {
+        throw new Error("Gagal memuat data log")
+      }
+      const data = await res.json()
+      setLogs(data.logs || [])
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setLoading(false)
     }
+  }
 
-    load()
+  useEffect(() => {
+    loadLogs()
   }, [])
+
+  const handleFilter = () => {
+    loadLogs(true)
+  }
+
+  const handleExport = async () => {
+    try {
+        const params = new URLSearchParams()
+        if (startDate) params.append("startDate", startDate)
+        if (endDate) params.append("endDate", endDate)
+        params.append("limit", "0") // Unlimited for export
+
+        const res = await fetch(`/api/logs?${params.toString()}`)
+        if (!res.ok) throw new Error("Gagal mengambil data untuk export")
+        const data = await res.json()
+        
+        if (!data.logs || data.logs.length === 0) {
+            alert("Tidak ada data untuk diexport")
+            return
+        }
+
+        const rows = data.logs.map(log => ({
+            "ID": log.id,
+            "Waktu": log.createdAt ? new Date(log.createdAt).toLocaleString() : "-",
+            "Metode": log.mode,
+            "Jenis": log.processType,
+            "Plaintext": log.plaintext,
+            "Ciphertext": log.ciphertext,
+            "Waktu Proses (ms)": log.timeMs,
+            "Kunci A": log.keys?.a,
+            "Kunci B": log.keys?.b,
+            "Kunci K1": log.keys?.k1,
+            "Kunci K2": log.keys?.k2
+        }))
+
+        const worksheet = XLSX.utils.json_to_sheet(rows)
+        const workbook = XLSX.utils.book_new()
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Log Enkripsi")
+        XLSX.writeFile(workbook, `Log_Enkripsi_${new Date().toISOString().slice(0,10)}.xlsx`)
+    } catch (e) {
+        alert("Gagal export: " + e.message)
+    }
+  }
 
   return (
     <div className="w-full space-y-6">
@@ -129,6 +185,41 @@ export default function LogsPage() {
         </Link>
       </div>
 
+      <div className="flex flex-wrap items-end gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="space-y-1">
+            <label className="text-xs font-medium text-slate-700">Tanggal Mulai</label>
+            <input 
+                type="date" 
+                value={startDate} 
+                onChange={e => setStartDate(e.target.value)}
+                className="block w-full rounded-lg border-slate-200 text-xs shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            />
+        </div>
+        <div className="space-y-1">
+            <label className="text-xs font-medium text-slate-700">Tanggal Selesai</label>
+            <input 
+                type="date" 
+                value={endDate} 
+                onChange={e => setEndDate(e.target.value)}
+                className="block w-full rounded-lg border-slate-200 text-xs shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            />
+        </div>
+        <div className="flex gap-2">
+            <button 
+                onClick={handleFilter}
+                className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-xs font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            >
+                Filter
+            </button>
+            <button 
+                onClick={handleExport}
+                className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-xs font-medium text-slate-700 shadow-sm hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2"
+            >
+                Export Excel
+            </button>
+        </div>
+      </div>
+
       {loading && (
         <div className="rounded-2xl border border-slate-200 bg-white px-4 py-6 text-xs text-slate-600 shadow-sm">
           Memuat data log...
@@ -143,7 +234,7 @@ export default function LogsPage() {
 
       {!loading && !error && logs.length === 0 && (
         <div className="rounded-2xl border border-slate-200 bg-white px-4 py-6 text-xs text-slate-600 shadow-sm">
-          Belum ada log enkripsi yang tersimpan.
+          Tidak ada log yang ditemukan untuk filter ini.
         </div>
       )}
 
