@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import Link from "next/link"
+import { useEffect, useState } from "react"
 import { decryptCaesar } from "@/lib/caesar.js"
 import { decryptHybrid } from "@/lib/hybrid.js"
 
@@ -94,6 +95,37 @@ export default function AttackerPage() {
   const [truePlaintext, setTruePlaintext] = useState("")
   const [trueRank, setTrueRank] = useState(null)
   const [trueFoundInSearch, setTrueFoundInSearch] = useState(null)
+  const [availableSessions, setAvailableSessions] = useState([])
+  const [selectedSessionId, setSelectedSessionId] = useState("")
+  const [sessionNumber, setSessionNumber] = useState(null)
+
+  useEffect(() => {
+    async function loadSessions() {
+      try {
+        const res = await fetch("/api/sessions")
+        if (!res.ok) return
+        const data = await res.json()
+        setAvailableSessions(data.sessions || [])
+      } catch {}
+    }
+    loadSessions()
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const idFromUrl = new URLSearchParams(window.location.search).get("sessionId")
+    if (!idFromUrl) return
+    setSelectedSessionId(idFromUrl)
+  }, [])
+
+  useEffect(() => {
+    if (!selectedSessionId) {
+      setSessionNumber(null)
+      return
+    }
+    const s = availableSessions.find((x) => x.id === selectedSessionId)
+    setSessionNumber(s ? s.number : null)
+  }, [selectedSessionId, availableSessions])
 
   const handleAttack = () => {
     const start = performance.now()
@@ -213,6 +245,7 @@ export default function AttackerPage() {
           attackTime: duration,
           trueFoundInSearch: foundInSearch,
           trueRank: rank,
+          sessionId: selectedSessionId || null,
         }),
       }).catch(() => {})
     } catch {
@@ -246,6 +279,49 @@ export default function AttackerPage() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <section className="space-y-4 lg:col-span-2">
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-sm font-semibold text-slate-900">Sesi Pengujian</h2>
+              <span className="text-xs text-slate-400">
+                {sessionNumber ? `No Sesi: ${sessionNumber}` : "Belum ada sesi"}
+              </span>
+            </div>
+            <div className="mt-3 grid gap-3 md:grid-cols-3">
+              <div className="space-y-1 md:col-span-2">
+                <label className="text-[11px] font-medium text-slate-500">Pilih Sesi</label>
+                <select
+                  className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  value={selectedSessionId}
+                  onChange={(e) => setSelectedSessionId(e.target.value)}
+                >
+                  <option value="">(Tanpa sesi)</option>
+                  {availableSessions.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {`No ${s.number} • ${s.group || "-"} • ${s.testType || "-"} • ${s.algorithm || "-"}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] font-medium text-slate-500">Aksi Cepat</label>
+                <div className="flex gap-2">
+                  <Link
+                    href="/sessions"
+                    className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-center text-xs font-medium text-slate-700 shadow-sm transition hover:border-blue-500 hover:text-blue-700"
+                  >
+                    Atur Sesi
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedSessionId("")}
+                    className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-sm transition hover:border-blue-500 hover:text-blue-700"
+                  >
+                    Lepas
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="text-sm font-semibold text-slate-900">Input Ciphertext</h2>
             <textarea

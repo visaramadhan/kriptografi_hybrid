@@ -45,6 +45,10 @@ export default function CampusSimPage() {
   const [decrypted, setDecrypted] = useState("")
   const [encryptTime, setEncryptTime] = useState(null)
   const [decryptTime, setDecryptTime] = useState(null)
+  const [sessionId, setSessionId] = useState(null)
+  const [sessionNumber, setSessionNumber] = useState(null)
+  const [sessionTestType, setSessionTestType] = useState("campus-sim")
+  const [hybridVariant, setHybridVariant] = useState("dc_a")
 
   const plaintextStats = cipherStats(plaintext)
   const ciphertextStats = cipherStats(ciphertext)
@@ -96,7 +100,21 @@ export default function CampusSimPage() {
     } else if (mode === "affine") {
       result = encryptAffine(text, aUsed, bUsed)
     } else {
-      result = encryptHybrid(text, aUsed, bUsed, k1Used, k2Used)
+      if (hybridVariant === "c_a") {
+        result = encryptAffine(encryptCaesar(text, k1Used), aUsed, bUsed)
+      } else if (hybridVariant === "dc_a") {
+        result = encryptAffine(
+          encryptCaesar(encryptCaesar(text, k1Used), k2Used),
+          aUsed,
+          bUsed
+        )
+      } else {
+        result = encryptAffine(
+          encryptCaesar(encryptCaesar(encryptCaesar(text, k1Used), k2Used), k2Used),
+          aUsed,
+          bUsed
+        )
+      }
     }
 
     const end = performance.now()
@@ -120,8 +138,9 @@ export default function CampusSimPage() {
           keyMode,
           keys: { a: aUsed, b: bUsed, k1: k1Used, k2: k2Used },
           source: "campus-sim",
-          metrics: { timeMs: duration, mode },
-          mode,
+          metrics: { timeMs: duration, mode, hybridVariant },
+          mode: mode === "hybrid" ? `hybrid-${hybridVariant}` : mode,
+          sessionId,
         }),
       })
     } catch (e) {
@@ -163,6 +182,170 @@ export default function CampusSimPage() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <section className="space-y-4 lg:col-span-2">
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-sm font-semibold text-slate-900">Sesi Pengujian</h2>
+              <span className="text-xs text-slate-400">
+                {sessionNumber ? `No Sesi: ${sessionNumber}` : "Belum ada sesi"}
+              </span>
+            </div>
+            <div className="mt-3 grid gap-3 md:grid-cols-5">
+              <div className="space-y-1">
+                <label className="text-[11px] font-medium text-slate-500">Algoritma</label>
+                <input
+                  type="text"
+                  className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  value={mode}
+                  readOnly
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] font-medium text-slate-500">Mode Kunci</label>
+                <input
+                  type="text"
+                  className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  value={keyMode}
+                  readOnly
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] font-medium text-slate-500">Panjang Teks</label>
+                <input
+                  type="number"
+                  className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  value={buildPlaintext().toUpperCase().replace(/[^A-Z]/g, '').length}
+                  readOnly
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] font-medium text-slate-500">Jumlah Run</label>
+                <input
+                  type="number"
+                  className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  value={1}
+                  readOnly
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] font-medium text-slate-500">Jenis Uji</label>
+                <input
+                  type="text"
+                  className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  value={sessionTestType}
+                  onChange={(e) => setSessionTestType(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={async () => {
+                  const payload = {
+                    algorithm: mode,
+                    keyMode,
+                    textLength: buildPlaintext().toUpperCase().replace(/[^A-Z]/g, '').length,
+                    runCount: 1,
+                    testType: sessionTestType || "campus-sim",
+                  }
+                  const res = await fetch("/api/sessions", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload),
+                  })
+                  if (res.ok) {
+                    const data = await res.json()
+                    setSessionId(data.id)
+                    setSessionNumber(data.number)
+                  }
+                }}
+                className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 text-xs font-medium text-slate-700 shadow-sm transition hover:border-blue-500 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+              >
+                Buat Sesi
+              </button>
+            </div>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-sm font-semibold text-slate-900">Sesi Pengujian</h2>
+              <span className="text-xs text-slate-400">
+                {sessionNumber ? `No Sesi: ${sessionNumber}` : "Belum ada sesi"}
+              </span>
+            </div>
+            <div className="mt-3 grid gap-3 md:grid-cols-5">
+              <div className="space-y-1">
+                <label className="text-[11px] font-medium text-slate-500">Algoritma</label>
+                <input
+                  type="text"
+                  className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  value={mode}
+                  readOnly
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] font-medium text-slate-500">Mode Kunci</label>
+                <input
+                  type="text"
+                  className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  value={keyMode}
+                  readOnly
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] font-medium text-slate-500">Panjang Teks</label>
+                <input
+                  type="number"
+                  className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  value={buildPlaintext().toUpperCase().replace(/[^A-Z]/g, '').length}
+                  readOnly
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] font-medium text-slate-500">Jumlah Run</label>
+                <input
+                  type="number"
+                  className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  value={1}
+                  readOnly
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] font-medium text-slate-500">Jenis Uji</label>
+                <input
+                  type="text"
+                  className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  value={sessionTestType}
+                  onChange={(e) => setSessionTestType(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={async () => {
+                  const payload = {
+                    algorithm: mode,
+                    keyMode,
+                    textLength: buildPlaintext().toUpperCase().replace(/[^A-Z]/g, '').length,
+                    runCount: 1,
+                    testType: sessionTestType || "campus-sim",
+                  }
+                  const res = await fetch("/api/sessions", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload),
+                  })
+                  if (res.ok) {
+                    const data = await res.json()
+                    setSessionId(data.id)
+                    setSessionNumber(data.number)
+                  }
+                }}
+                className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 text-xs font-medium text-slate-700 shadow-sm transition hover:border-blue-500 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+              >
+                Buat Sesi
+              </button>
+            </div>
+          </div>
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex items-center justify-between gap-2">
               <h2 className="text-sm font-semibold text-slate-900">
@@ -327,7 +510,23 @@ export default function CampusSimPage() {
               </p>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <h2 className="text-sm font-semibold text-slate-900">Ciphertext</h2>
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-slate-900">Ciphertext</h2>
+                {mode === "hybrid" && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] text-slate-500">Model Hybrid</span>
+                    <select
+                      className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-[11px] text-slate-900"
+                      value={hybridVariant}
+                      onChange={(e) => setHybridVariant(e.target.value)}
+                    >
+                      <option value="c_a">Caesar → Affine</option>
+                      <option value="dc_a">Double Caesar → Affine</option>
+                      <option value="c_dc_a">Caesar → Double Caesar → Affine</option>
+                    </select>
+                  </div>
+                )}
+              </div>
               <p className="mt-2 break-words font-mono text-xs text-slate-800">
                 {ciphertext || "Belum ada ciphertext."}
               </p>

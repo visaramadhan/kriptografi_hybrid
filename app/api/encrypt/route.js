@@ -15,6 +15,7 @@ export async function POST(req) {
     k2,
     keyMode,
     source,
+    sessionId,
   } = body
 
   const start = Date.now()
@@ -48,6 +49,7 @@ export async function POST(req) {
       textLength: typeof text === "string" ? text.replace(/[^A-Za-z]/g, "").length : null,
       source: source || "dashboard",
       createdAt: new Date(),
+      sessionId: typeof sessionId === "string" ? sessionId : null,
     }
     const insertResult = await collection.insertOne(doc)
     logId = insertResult.insertedId.toString()

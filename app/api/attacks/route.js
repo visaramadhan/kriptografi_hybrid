@@ -1,11 +1,16 @@
 import { getAttacksCollection } from "@/lib/mongodb"
 export const runtime = "nodejs"
 
-export async function GET() {
+export async function GET(request) {
   try {
+    const { searchParams } = new URL(request.url)
+    const sessionId = searchParams.get("sessionId")
+
     const collection = await getAttacksCollection()
+    const query = {}
+    if (sessionId) query.sessionId = sessionId
     const docs = await collection
-      .find({})
+      .find(query)
       .sort({ createdAt: -1 })
       .limit(200)
       .toArray()
@@ -19,6 +24,7 @@ export async function GET() {
       trueFoundInSearch: doc.trueFoundInSearch,
       trueRank: doc.trueRank,
       createdAt: doc.createdAt,
+      sessionId: doc.sessionId || null,
     }))
 
     return Response.json({ attacks })
@@ -43,6 +49,7 @@ export async function POST(req) {
       attackTime,
       trueFoundInSearch,
       trueRank,
+      sessionId,
     } = body || {}
 
     if (!algorithm) {
@@ -64,6 +71,7 @@ export async function POST(req) {
         typeof trueFoundInSearch === "boolean" ? trueFoundInSearch : null,
       trueRank: typeof trueRank === "number" ? trueRank : null,
       createdAt: new Date(),
+      sessionId: typeof sessionId === "string" ? sessionId : null,
     }
 
     const collection = await getAttacksCollection()

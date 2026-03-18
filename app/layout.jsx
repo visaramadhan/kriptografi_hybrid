@@ -41,6 +41,12 @@ export default function RootLayout({ children }) {
                 <Link href="/analysis" className="transition-colors hover:text-blue-600">
                   Analisis
                 </Link>
+                <Link href="/sessions" className="transition-colors hover:text-blue-600">
+                  Sesi
+                </Link>
+                <Link href="/report" className="transition-colors hover:text-blue-600">
+                  Laporan
+                </Link>
                 <Link href="/logs" className="transition-colors hover:text-blue-600">
                   Logs
                 </Link>

@@ -28,7 +28,13 @@ export default function LogDetailPage() {
       try {
         const res = await fetch(`/api/logs/${id}`)
         if (!res.ok) {
-          throw new Error("Gagal memuat detail log")
+          let msg = "Gagal memuat detail log"
+          try {
+            const txt = await res.text()
+            const parsed = JSON.parse(txt)
+            msg = parsed.error || parsed.details || msg
+          } catch {}
+          throw new Error(msg)
         }
         const data = await res.json()
         setLog(data.log)

@@ -7,6 +7,8 @@ export async function GET(request) {
     const startDate = searchParams.get("startDate")
     const endDate = searchParams.get("endDate")
     const limitParam = searchParams.get("limit")
+    const sessionId = searchParams.get("sessionId")
+    const includeMetrics = searchParams.get("includeMetrics") === "1"
     
     let limit = 100
     if (limitParam !== null) {
@@ -20,6 +22,9 @@ export async function GET(request) {
     }
 
     const query = {}
+    if (sessionId) {
+      query.sessionId = sessionId
+    }
     if (startDate || endDate) {
       let startJsDate = null
       let endJsDate = null
@@ -83,6 +88,8 @@ export async function GET(request) {
       keyMode: doc.keyMode || null,
       textLength: doc.textLength || null,
       source: doc.source || null,
+      sessionId: doc.sessionId || null,
+      metrics: includeMetrics ? doc.metrics || null : undefined,
     }))
 
     return Response.json({ logs })

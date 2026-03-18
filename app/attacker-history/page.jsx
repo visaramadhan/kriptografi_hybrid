@@ -6,11 +6,28 @@ export default function AttackerHistoryPage() {
   const [attacks, setAttacks] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [sessions, setSessions] = useState([])
+  const [selectedSessionId, setSelectedSessionId] = useState("")
+
+  useEffect(() => {
+    async function loadSessions() {
+      try {
+        const res = await fetch("/api/sessions")
+        if (res.ok) {
+          const data = await res.json()
+          setSessions(data.sessions || [])
+        }
+      } catch {}
+    }
+    loadSessions()
+  }, [])
 
   useEffect(() => {
     async function load() {
       try {
-        const res = await fetch("/api/attacks")
+        const params = new URLSearchParams()
+        if (selectedSessionId) params.append("sessionId", selectedSessionId)
+        const res = await fetch(`/api/attacks?${params.toString()}`)
         if (!res.ok) {
           throw new Error("Gagal memuat riwayat attacker")
         }
@@ -24,7 +41,7 @@ export default function AttackerHistoryPage() {
     }
 
     load()
-  }, [])
+  }, [selectedSessionId])
 
   const summary = useMemo(() => {
     if (!attacks.length) return []
@@ -83,6 +100,27 @@ export default function AttackerHistoryPage() {
         </p>
       </div>
 
+      <div className="flex flex-wrap items-end gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="space-y-1">
+          <label className="text-xs font-medium text-slate-700">Sesi</label>
+          <select
+            className="block w-56 rounded-lg border-slate-200 text-xs shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            value={selectedSessionId}
+            onChange={(e) => {
+              setLoading(true)
+              setSelectedSessionId(e.target.value)
+            }}
+          >
+            <option value="">Semua</option>
+            {sessions.map((s) => (
+              <option key={s.id} value={s.id}>
+                {`No ${s.number} • ${s.group || "-"} • ${s.testType || "-"} • ${s.algorithm || "-"}`}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
       {loading && (
         <div className="rounded-2xl border border-slate-200 bg-white px-4 py-6 text-xs text-slate-600 shadow-sm">
           Memuat data riwayat attacker...
@@ -120,6 +158,9 @@ export default function AttackerHistoryPage() {
                   Kombinasi diuji
                 </th>
                 <th className="px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                  Sesi
+                </th>
+                <th className="px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                   Waktu brute force (ms)
                 </th>
                 <th className="px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">
@@ -150,6 +191,12 @@ export default function AttackerHistoryPage() {
                   </td>
                   <td className="px-3 py-2 align-top text-slate-700">
                     {typeof attack.totalTried === "number" ? attack.totalTried : "-"}
+                  </td>
+                  <td className="px-3 py-2 align-top text-slate-700">
+                    {(() => {
+                      const s = sessions.find((x) => x.id === attack.sessionId)
+                      return s ? `No ${s.number}` : "-"
+                    })()}
                   </td>
                   <td className="px-3 py-2 align-top text-slate-700">
                     {typeof attack.attackTime === "number"
@@ -248,4 +295,3 @@ export default function AttackerHistoryPage() {
     </div>
   )
 }
-

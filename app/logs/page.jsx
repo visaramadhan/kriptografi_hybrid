@@ -8,6 +8,8 @@ export default function LogsPage() {
   const [logs, setLogs] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [sessions, setSessions] = useState([])
+  const [selectedSessionId, setSelectedSessionId] = useState("")
   
   const [startDate, setStartDate] = useState("")
   const [endDate, setEndDate] = useState("")
@@ -100,6 +102,9 @@ export default function LogsPage() {
     setError(null)
     try {
       const params = new URLSearchParams()
+      if (selectedSessionId) {
+        params.append("sessionId", selectedSessionId)
+      }
       if (withFilter) {
           if (startDate) params.append("startDate", startDate)
           if (endDate) params.append("endDate", endDate)
@@ -123,6 +128,23 @@ export default function LogsPage() {
     loadLogs()
   }, [])
 
+  useEffect(() => {
+    async function loadSessions() {
+      try {
+        const res = await fetch("/api/sessions")
+        if (res.ok) {
+          const data = await res.json()
+          setSessions(data.sessions || [])
+        }
+      } catch {}
+    }
+    loadSessions()
+  }, [])
+
+  useEffect(() => {
+    loadLogs(false)
+  }, [selectedSessionId])
+
   const handleFilter = () => {
     loadLogs(true)
   }
@@ -130,6 +152,7 @@ export default function LogsPage() {
   const handleExport = async () => {
     try {
         const params = new URLSearchParams()
+        if (selectedSessionId) params.append("sessionId", selectedSessionId)
         if (startDate) params.append("startDate", startDate)
         if (endDate) params.append("endDate", endDate)
         params.append("limit", "0") // Unlimited for export
@@ -148,6 +171,10 @@ export default function LogsPage() {
             "Waktu": log.createdAt ? new Date(log.createdAt).toLocaleString() : "-",
             "Metode": log.mode,
             "Jenis": log.processType,
+            "Sesi": (() => {
+              const s = sessions.find((x) => x.id === log.sessionId)
+              return s ? `No ${s.number}` : "-"
+            })(),
             "Plaintext": log.plaintext,
             "Ciphertext": log.ciphertext,
             "Waktu Proses (ms)": log.timeMs,
@@ -160,7 +187,8 @@ export default function LogsPage() {
         const worksheet = XLSX.utils.json_to_sheet(rows)
         const workbook = XLSX.utils.book_new()
         XLSX.utils.book_append_sheet(workbook, worksheet, "Log Enkripsi")
-        XLSX.writeFile(workbook, `Log_Enkripsi_${new Date().toISOString().slice(0,10)}.xlsx`)
+        const suffix = selectedSessionId ? `Sesi_${selectedSessionId}` : "Semua"
+        XLSX.writeFile(workbook, `Log_Enkripsi_${suffix}_${new Date().toISOString().slice(0,10)}.xlsx`)
     } catch (e) {
         alert("Gagal export: " + e.message)
     }
@@ -186,6 +214,21 @@ export default function LogsPage() {
       </div>
 
       <div className="flex flex-wrap items-end gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="space-y-1">
+          <label className="text-xs font-medium text-slate-700">Sesi</label>
+          <select
+            className="block w-48 rounded-lg border-slate-200 text-xs shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            value={selectedSessionId}
+            onChange={(e) => setSelectedSessionId(e.target.value)}
+          >
+            <option value="">Semua</option>
+            {sessions.map((s) => (
+              <option key={s.id} value={s.id}>
+                {`No ${s.number} • ${s.group || "-"} • ${s.testType || "-"} • ${s.algorithm || "-"}`}
+              </option>
+            ))}
+          </select>
+        </div>
         <div className="space-y-1">
             <label className="text-xs font-medium text-slate-700">Tanggal Mulai</label>
             <input 
@@ -264,6 +307,9 @@ export default function LogsPage() {
                 <th className="px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                   Timestamp
                 </th>
+                <th className="px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                  Sesi
+                </th>
                 <th className="px-3 py-2 text-right text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                   Aksi
                 </th>
@@ -295,6 +341,12 @@ export default function LogsPage() {
                     {log.createdAt
                       ? new Date(log.createdAt).toLocaleString()
                       : "-"}
+                  </td>
+                  <td className="px-3 py-2 align-top text-slate-700">
+                    {(() => {
+                      const s = sessions.find((x) => x.id === log.sessionId)
+                      return s ? `No ${s.number}` : "-"
+                    })()}
                   </td>
                   <td className="px-3 py-2 align-top text-right">
                     <Link

@@ -1,9 +1,14 @@
 import { getLogsCollection, toObjectId } from "@/lib/mongodb"
 export const runtime = "nodejs"
 
-export async function GET(req, { params }) {
+export async function GET(req, ctx) {
   try {
-    const { id } = params || {}
+    let id = ctx && ctx.params ? ctx.params.id : null
+    if (!id) {
+      const url = new URL(req.url)
+      const parts = url.pathname.split("/").filter(Boolean)
+      id = parts[parts.length - 1] || null
+    }
     if (!id) {
       return new Response(
         JSON.stringify({ error: "ID log tidak diberikan" }),
@@ -14,8 +19,17 @@ export async function GET(req, { params }) {
       )
     }
 
+    const match = String(id).match(/[a-fA-F0-9]{24}/)
+    const hexId = match ? match[0] : null
+    if (!hexId) {
+      return new Response(JSON.stringify({ error: "ID log tidak valid" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      })
+    }
+
     const collection = await getLogsCollection()
-    const doc = await collection.findOne({ _id: toObjectId(id) })
+    const doc = await collection.findOne({ _id: toObjectId(hexId) })
 
     if (!doc) {
       return new Response(
@@ -40,6 +54,7 @@ export async function GET(req, { params }) {
       textLength: doc.textLength || null,
       source: doc.source || null,
       metrics: doc.metrics || null,
+      sessionId: doc.sessionId || null,
     }
 
     return Response.json({ log })

@@ -10,6 +10,7 @@
     "test:hybrid": "node test-hybrid.js"
   },
   "dependencies": {
+    "mongodb": "latest",
     "next": "latest",
     "react": "latest",
     "react-dom": "latest",
@@ -17,7 +18,6 @@
   },
   "devDependencies": {
     "autoprefixer": "^10.4.24",
-    "mongodb": "latest",
     "postcss": "^8.4.31",
     "tailwindcss": "3.4.14"
   }

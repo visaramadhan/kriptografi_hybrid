@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { encryptCaesar } from "@/lib/caesar.js"
 import { encryptAffine } from "@/lib/affine.js"
 import { encryptHybrid } from "@/lib/hybrid.js"
@@ -25,6 +25,14 @@ export default function AnalysisPage() {
   const [runs, setRuns] = useState(5)
   const [keyMode, setKeyMode] = useState("manual")
   const [results, setResults] = useState(null)
+  const [sessionId, setSessionId] = useState(null)
+  const [sessionNumber, setSessionNumber] = useState(null)
+  const [sessionTestType, setSessionTestType] = useState("analysis")
+  const [sessionAlgorithm, setSessionAlgorithm] = useState("multi")
+  const [sessionGroup, setSessionGroup] = useState("")
+  const [sessionGroupNo, setSessionGroupNo] = useState("")
+  const [availableSessions, setAvailableSessions] = useState([])
+  const [selectedExistingSessionId, setSelectedExistingSessionId] = useState("")
 
   const inputStats = useMemo(() => {
     const normalized = text.toUpperCase().replace(/[^A-Z]/g, "")
@@ -101,6 +109,11 @@ export default function AnalysisPage() {
       doubleCaesar: { times: [], cipher: "", freq: [] },
       affine: { times: [], cipher: "", freq: [] },
       hybrid: { times: [], cipher: "", freq: [] },
+      hybridVariants: {
+        c_a: { times: [], cipher: "", freq: [] },
+        dc_a: { times: [], cipher: "", freq: [] },
+        c_dc_a: { times: [], cipher: "", freq: [] },
+      },
     }
 
     const iterations = Math.max(1, Math.min(Number(runs) || 1, 50))
@@ -136,6 +149,35 @@ export default function AnalysisPage() {
       executions.hybrid.times.push(end - start)
       executions.hybrid.cipher = hybrid
       executions.hybrid.freq = frequencyMap(hybrid)
+
+      start = performance.now()
+      const c_a = encryptAffine(encryptCaesar(text, k1Used), aUsed, bUsed)
+      end = performance.now()
+      executions.hybridVariants.c_a.times.push(end - start)
+      executions.hybridVariants.c_a.cipher = c_a
+      executions.hybridVariants.c_a.freq = frequencyMap(c_a)
+
+      start = performance.now()
+      const dc_a = encryptAffine(
+        encryptCaesar(encryptCaesar(text, k1Used), k2Used),
+        aUsed,
+        bUsed
+      )
+      end = performance.now()
+      executions.hybridVariants.dc_a.times.push(end - start)
+      executions.hybridVariants.dc_a.cipher = dc_a
+      executions.hybridVariants.dc_a.freq = frequencyMap(dc_a)
+
+      start = performance.now()
+      const c_dc_a = encryptAffine(
+        encryptCaesar(encryptCaesar(encryptCaesar(text, k1Used), k2Used), k2Used),
+        aUsed,
+        bUsed
+      )
+      end = performance.now()
+      executions.hybridVariants.c_dc_a.times.push(end - start)
+      executions.hybridVariants.c_dc_a.cipher = c_dc_a
+      executions.hybridVariants.c_dc_a.freq = frequencyMap(c_dc_a)
     }
 
     function aggregateTimes(times) {
@@ -161,6 +203,11 @@ export default function AnalysisPage() {
       },
       affine: { ...aggregateTimes(executions.affine.times), cipher: executions.affine.cipher, freq: executions.affine.freq },
       hybrid: { ...aggregateTimes(executions.hybrid.times), cipher: executions.hybrid.cipher, freq: executions.hybrid.freq },
+      hybridVariants: {
+        c_a: { ...aggregateTimes(executions.hybridVariants.c_a.times) },
+        dc_a: { ...aggregateTimes(executions.hybridVariants.dc_a.times) },
+        c_dc_a: { ...aggregateTimes(executions.hybridVariants.c_dc_a.times) },
+      },
     }
 
     setResults(aggregated)
@@ -180,11 +227,56 @@ export default function AnalysisPage() {
           keys: { a: aUsed, b: bUsed, k1: k1Used, k2: k2Used },
           source: "analysis-page",
           metrics: aggregated,
+          sessionId,
         }),
       })
     } catch (e) {
     }
   }
+
+  useEffect(() => {
+    async function loadSessions() {
+      try {
+        const res = await fetch("/api/sessions")
+        if (!res.ok) return
+        const data = await res.json()
+        setAvailableSessions(data.sessions || [])
+      } catch {}
+    }
+    loadSessions()
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const idFromUrl = new URLSearchParams(window.location.search).get("sessionId")
+    if (!idFromUrl) return
+    setSelectedExistingSessionId(idFromUrl)
+  }, [])
+
+  useEffect(() => {
+    if (!selectedExistingSessionId) return
+    const s = availableSessions.find((x) => x.id === selectedExistingSessionId)
+    setSessionId(selectedExistingSessionId)
+    setSessionNumber(s ? s.number : null)
+    if (s && typeof s.runCount === "number") {
+      setRuns(String(s.runCount))
+    }
+    if (s && typeof s.keyMode === "string" && s.keyMode) {
+      setKeyMode(s.keyMode)
+    }
+    if (s && typeof s.testType === "string" && s.testType) {
+      setSessionTestType(s.testType)
+    }
+    if (s && typeof s.algorithm === "string" && s.algorithm) {
+      setSessionAlgorithm(s.algorithm)
+    }
+    if (s && typeof s.group === "string") {
+      setSessionGroup(s.group || "")
+    }
+    if (s && typeof s.groupNo === "number") {
+      setSessionGroupNo(String(s.groupNo))
+    }
+  }, [selectedExistingSessionId, availableSessions])
 
   const bestKey = useMemo(() => {
     if (!summary) return null
@@ -208,6 +300,161 @@ export default function AnalysisPage() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <section className="space-y-4 lg:col-span-2">
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-sm font-semibold text-slate-900">Sesi Pengujian</h2>
+              <span className="text-xs text-slate-400">
+                {sessionNumber ? `No Sesi: ${sessionNumber}` : "Belum ada sesi"}
+              </span>
+            </div>
+            <div className="mt-3 grid gap-3 md:grid-cols-3">
+              <div className="space-y-1 md:col-span-2">
+                <label className="text-[11px] font-medium text-slate-500">Pilih Sesi</label>
+                <select
+                  className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  value={selectedExistingSessionId}
+                  onChange={(e) => setSelectedExistingSessionId(e.target.value)}
+                >
+                  <option value="">(Buat sesi baru di bawah)</option>
+                  {availableSessions.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {`No ${s.number} • ${s.group || "-"} • ${s.testType || "-"} • ${s.algorithm || "-"}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] font-medium text-slate-500">Aksi Cepat</label>
+                <div className="flex gap-2">
+                  <a
+                    href="/sessions"
+                    className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-center text-xs font-medium text-slate-700 shadow-sm transition hover:border-blue-500 hover:text-blue-700"
+                  >
+                    Atur Sesi
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedExistingSessionId("")
+                      setSessionId(null)
+                      setSessionNumber(null)
+                    }}
+                    className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-sm transition hover:border-blue-500 hover:text-blue-700"
+                  >
+                    Lepas
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div className="mt-3 grid gap-3 md:grid-cols-5">
+              <div className="space-y-1">
+                <label className="text-[11px] font-medium text-slate-500">Algoritma</label>
+                <select
+                  className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  value={sessionAlgorithm}
+                  onChange={(e) => setSessionAlgorithm(e.target.value)}
+                >
+                  <option value="multi">Multi</option>
+                  <option value="caesar">Caesar</option>
+                  <option value="double-caesar">Double Caesar</option>
+                  <option value="affine">Affine</option>
+                  <option value="hybrid">Hybrid</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] font-medium text-slate-500">Mode Kunci</label>
+                <input
+                  type="text"
+                  className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  value={keyMode}
+                  onChange={(e) => setKeyMode(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] font-medium text-slate-500">Panjang Teks</label>
+                <input
+                  type="number"
+                  className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  value={inputStats.length}
+                  readOnly
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] font-medium text-slate-500">Jumlah Run</label>
+                <input
+                  type="number"
+                  className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  value={runs}
+                  onChange={(e) => setRuns(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] font-medium text-slate-500">Jenis Uji</label>
+                <input
+                  type="text"
+                  className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  value={sessionTestType}
+                  onChange={(e) => setSessionTestType(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] font-medium text-slate-500">Kelompok</label>
+                <input
+                  type="text"
+                  className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  placeholder="Kelompok 1"
+                  value={sessionGroup}
+                  onChange={(e) => setSessionGroup(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] font-medium text-slate-500">No Kelompok</label>
+                <input
+                  type="number"
+                  className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  value={sessionGroupNo}
+                  onChange={(e) => setSessionGroupNo(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={async () => {
+                  const payload = {
+                    algorithm: sessionAlgorithm,
+                    keyMode,
+                    textLength: inputStats.length,
+                    runCount: Number(runs) || 0,
+                    testType: sessionTestType || "analysis",
+                    group: sessionGroup || undefined,
+                    groupNo: sessionGroupNo ? Number(sessionGroupNo) : undefined,
+                  }
+                  const res = await fetch("/api/sessions", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload),
+                  })
+                  if (res.ok) {
+                    const data = await res.json()
+                    setSessionId(data.id)
+                    setSessionNumber(data.number)
+                    setSelectedExistingSessionId(data.id)
+                    try {
+                      const refreshed = await fetch("/api/sessions")
+                      if (refreshed.ok) {
+                        const newData = await refreshed.json()
+                        setAvailableSessions(newData.sessions || [])
+                      }
+                    } catch {}
+                  }
+                }}
+                className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 text-xs font-medium text-slate-700 shadow-sm transition hover:border-blue-500 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+              >
+                Buat Sesi
+              </button>
+            </div>
+          </div>
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="flex items-center justify-between gap-2">
               <h2 className="text-sm font-semibold text-slate-900">Pengaturan Analisis</h2>
@@ -418,6 +665,54 @@ export default function AnalysisPage() {
                   dengan waktu sekitar {bestKey.avgTime.toFixed(3)} ms.
                 </p>
               )}
+            </div>
+          )}
+
+          {results && results.hybridVariants && (
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="text-sm font-semibold text-slate-900">Perbandingan Model Hybrid</h2>
+              </div>
+              <div className="mt-3 overflow-x-auto">
+                <table className="min-w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-100 bg-slate-50">
+                      <th className="px-3 py-2 text-left font-semibold uppercase tracking-wide text-slate-500">
+                        Model
+                      </th>
+                      <th className="px-3 py-2 text-right font-semibold uppercase tracking-wide text-slate-500">
+                        Rata-rata (ms)
+                      </th>
+                      <th className="px-3 py-2 text-right font-semibold uppercase tracking-wide text-slate-500">
+                        Min (ms)
+                      </th>
+                      <th className="px-3 py-2 text-right font-semibold uppercase tracking-wide text-slate-500">
+                        Max (ms)
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      { key: "c_a", label: "Caesar → Affine" },
+                      { key: "dc_a", label: "Double Caesar → Affine" },
+                      { key: "c_dc_a", label: "Caesar → Double Caesar → Affine" },
+                    ].map((v) => (
+                      <tr key={v.key} className="border-t border-slate-100">
+                        <td className="px-3 py-2 text-slate-700">{v.label}</td>
+                        <td className="px-3 py-2 text-right font-mono text-[11px] text-slate-800">
+                          {results.hybridVariants[v.key].avgTime.toFixed(3)}
+                        </td>
+                        <td className="px-3 py-2 text-right font-mono text-[11px] text-slate-800">
+                          {results.hybridVariants[v.key].minTime.toFixed(3)}
+                        </td>
+                        <td className="px-3 py-2 text-right font-mono text-[11px] text-slate-800">
+                          {results.hybridVariants[v.key].maxTime.toFixed(3)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 

@@ -13,6 +13,7 @@ export async function POST(req) {
       metrics,
       textLength,
       source,
+      sessionId,
     } = body || {}
 
     const baseText = typeof text === "string" ? text : ""
@@ -50,6 +51,7 @@ export async function POST(req) {
       textLength: normalizedLength,
       source: source || null,
       metrics: metrics || null,
+      sessionId: typeof sessionId === "string" ? sessionId : null,
     }
 
     const collection = await getLogsCollection()
