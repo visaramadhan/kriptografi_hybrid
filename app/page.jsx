@@ -31,6 +31,7 @@ export default function Home() {
   const [secureEnvelope, setSecureEnvelope] = useState(null)
   const [secureEcdhEnvelope, setSecureEcdhEnvelope] = useState(null)
   const [secureStatus, setSecureStatus] = useState("")
+  const [apiStatus, setApiStatus] = useState("")
   const [a, setA] = useState(5)
   const [b, setB] = useState(8)
   const [k1, setK1] = useState(3)
@@ -119,55 +120,108 @@ export default function Home() {
   const handleEncryptServer = async () => {
     if (mode === "secure-hybrid" || mode === "secure-ecdh") return
     applyKeyManagement()
+    setApiStatus("")
     const sessionId =
       typeof window !== "undefined" ? window.localStorage.getItem("activeSessionId") : ""
 
-    const res = await fetch("/api/encrypt", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        text,
-        mode,
-        a,
-        b,
-        k1,
-        k2,
-        keyMode,
-        source: "dashboard",
-        sessionId: sessionId || null,
-      }),
-    })
+    if (!text) {
+      setApiStatus("Input masih kosong.")
+      return
+    }
 
-    const data = await res.json()
-    setCipherText(data.result)
-    if (typeof data.timeMs === "number") {
-      setEncryptTime(data.timeMs)
+    try {
+      const res = await fetch("/api/encrypt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text,
+          mode,
+          a,
+          b,
+          k1,
+          k2,
+          keyMode,
+          source: "dashboard",
+          sessionId: sessionId || null,
+        }),
+      })
+
+      if (!res.ok) {
+        let msg = `Gagal encrypt via API (HTTP ${res.status})`
+        try {
+          const t = await res.text()
+          try {
+            const parsed = JSON.parse(t)
+            msg = parsed.error || parsed.details || msg
+          } catch {
+            if (t) msg = t
+          }
+        } catch {}
+        setApiStatus(msg)
+        return
+      }
+
+      const data = await res.json()
+      setCipherText(typeof data.result === "string" ? data.result : "")
+      if (typeof data.timeMs === "number") {
+        setEncryptTime(data.timeMs)
+      }
+      setApiStatus(data.logId ? `OK · log ${data.logId}` : "OK")
+    } catch (e) {
+      setApiStatus(e.message)
     }
   }
 
   const handleDecryptServer = async () => {
     if (mode === "secure-hybrid" || mode === "secure-ecdh") return
+    setApiStatus("")
     const sessionId =
       typeof window !== "undefined" ? window.localStorage.getItem("activeSessionId") : ""
-    const res = await fetch("/api/decrypt", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        text: cipherText,
-        mode,
-        a,
-        b,
-        k1,
-        k2,
-        keyMode,
-        source: "dashboard",
-        sessionId: sessionId || null,
-      }),
-    })
-    const data = await res.json()
-    setPlainText(data.result)
-    if (typeof data.timeMs === "number") {
-      setDecryptTime(data.timeMs)
+    if (!cipherText) {
+      setApiStatus("Ciphertext masih kosong.")
+      return
+    }
+
+    try {
+      const res = await fetch("/api/decrypt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: cipherText,
+          mode,
+          a,
+          b,
+          k1,
+          k2,
+          keyMode,
+          source: "dashboard",
+          sessionId: sessionId || null,
+        }),
+      })
+
+      if (!res.ok) {
+        let msg = `Gagal decrypt via API (HTTP ${res.status})`
+        try {
+          const t = await res.text()
+          try {
+            const parsed = JSON.parse(t)
+            msg = parsed.error || parsed.details || msg
+          } catch {
+            if (t) msg = t
+          }
+        } catch {}
+        setApiStatus(msg)
+        return
+      }
+
+      const data = await res.json()
+      setPlainText(typeof data.result === "string" ? data.result : "")
+      if (typeof data.timeMs === "number") {
+        setDecryptTime(data.timeMs)
+      }
+      setApiStatus(data.logId ? `OK · log ${data.logId}` : "OK")
+    } catch (e) {
+      setApiStatus(e.message)
     }
   }
 
@@ -183,6 +237,14 @@ export default function Home() {
     const bytes = new Uint8Array(binary.length)
     for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
     return bytes.buffer
+  }
+
+  function flipFirstByteB64(b64) {
+    const buf = b64ToBuf(b64)
+    const bytes = new Uint8Array(buf)
+    if (bytes.length === 0) return b64
+    bytes[0] = bytes[0] ^ 1
+    return bufToB64(bytes.buffer)
   }
 
   async function ensureActiveSessionId() {
@@ -613,6 +675,162 @@ export default function Home() {
     }
   }
 
+  async function handleTamperTestSecure() {
+    setSecureStatus("")
+    setDecryptTime(null)
+    try {
+      const sessionId =
+        typeof window !== "undefined" ? window.localStorage.getItem("activeSessionId") : ""
+      const env = secureEnvelope
+      if (!env) {
+        throw new Error("Jalankan Encrypt (Secure) dulu untuk membuat ciphertext.")
+      }
+
+      const tamperedTagB64 = flipFirstByteB64(env.tagB64)
+      const res = await fetch("/api/secure/decrypt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          encryptedKeyB64: env.encryptedKeyB64,
+          ivB64: env.ivB64,
+          ciphertextB64: env.ciphertextB64,
+          tagB64: tamperedTagB64,
+          keyMode,
+          source: "dashboard-secure-tamper",
+          sessionId: sessionId || null,
+        }),
+      })
+
+      let payload = null
+      try {
+        payload = await res.json()
+      } catch {
+        payload = null
+      }
+
+      if (res.ok) {
+        setSecureStatus("FAIL · Dekripsi tetap berhasil walaupun tag dimodifikasi.")
+        return
+      }
+
+      const timeMs = typeof payload?.timeMs === "number" ? payload.timeMs : null
+      if (timeMs != null) setDecryptTime(timeMs)
+      setSecureStatus("PASS · Dekripsi ditolak saat tag dimodifikasi (integritas AES-GCM bekerja).")
+    } catch (e) {
+      setSecureStatus(e.message)
+    }
+  }
+
+  async function handleTamperTestEcdh() {
+    setSecureStatus("")
+    setEncryptTime(null)
+    setDecryptTime(null)
+    try {
+      if (!window.crypto?.subtle) {
+        throw new Error("WebCrypto tidak tersedia di browser ini")
+      }
+
+      const sessionId = await ensureActiveSessionId()
+
+      const t0 = performance.now()
+      const helloRes = await fetch("/api/secure-ecdh/server-hello", { cache: "no-store" })
+      if (!helloRes.ok) throw new Error("Gagal handshake ECDH (server-hello)")
+      const hello = await helloRes.json()
+      const payload = JSON.stringify({
+        handshakeId: hello.handshakeId,
+        issuedAt: hello.issuedAt,
+        curve: hello.curve,
+        serverPublicKeyB64: hello.serverPublicKeyB64,
+      })
+      const t1 = performance.now()
+
+      await verifyServerHelloSignature(payload, hello.signatureB64)
+      const t2 = performance.now()
+
+      const serverPub = await importEcdhPublicKeyUncompressed(hello.serverPublicKeyB64)
+      const kp = await createClientEcdhKeypair()
+      const t3 = performance.now()
+
+      const sharedSecret = await window.crypto.subtle.deriveBits(
+        { name: "ECDH", public: serverPub },
+        kp.privateKey,
+        256,
+      )
+      const t4 = performance.now()
+
+      const aesKey = await hkdfToAesKey(sharedSecret, hello.handshakeId)
+      const t5 = performance.now()
+
+      const iv = window.crypto.getRandomValues(new Uint8Array(12))
+      const encoded = new TextEncoder().encode(text)
+      const encrypted = await window.crypto.subtle.encrypt(
+        { name: "AES-GCM", iv, tagLength: 128 },
+        aesKey,
+        encoded,
+      )
+      const t6 = performance.now()
+
+      const out = new Uint8Array(encrypted)
+      const tag = out.slice(out.length - 16)
+      const ciphertext = out.slice(0, out.length - 16)
+
+      const clientPubRaw = await window.crypto.subtle.exportKey("raw", kp.publicKey)
+      const envelope = {
+        handshakeId: hello.handshakeId,
+        clientPublicKeyB64: bufToB64(clientPubRaw),
+        ivB64: bufToB64(iv.buffer),
+        ciphertextB64: bufToB64(ciphertext.buffer),
+        tagB64: bufToB64(tag.buffer),
+      }
+
+      const metrics = {
+        helloFetchMs: t1 - t0,
+        pinAndVerifySigMs: t2 - t1,
+        keygenMs: t3 - t2,
+        ecdhMs: t4 - t3,
+        hkdfMs: t5 - t4,
+        aesGcmEncryptMs: t6 - t5,
+        totalClientMs: t6 - t0,
+      }
+      setEncryptTime(metrics.totalClientMs)
+
+      const tamperedCiphertextB64 = flipFirstByteB64(envelope.ciphertextB64)
+
+      const decStart = performance.now()
+      const res = await fetch("/api/secure-ecdh/decrypt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...envelope,
+          ciphertextB64: tamperedCiphertextB64,
+          keyMode,
+          source: "dashboard-ecdh-tamper",
+          sessionId,
+          clientMetrics: metrics,
+        }),
+      })
+      const decEnd = performance.now()
+
+      let payloadOut = null
+      try {
+        payloadOut = await res.json()
+      } catch {
+        payloadOut = null
+      }
+
+      if (res.ok) {
+        setSecureStatus("FAIL · Dekripsi ECDHE tetap berhasil walaupun ciphertext dimodifikasi.")
+        return
+      }
+
+      const timeMs = typeof payloadOut?.timeMs === "number" ? payloadOut.timeMs : decEnd - decStart
+      setDecryptTime(timeMs)
+      setSecureStatus("PASS · Dekripsi ditolak saat ciphertext dimodifikasi (integritas AES-GCM bekerja).")
+    } catch (e) {
+      setSecureStatus(e.message)
+    }
+  }
+
   return (
     <div className="w-full space-y-6">
       <div className="flex flex-col gap-2">
@@ -788,6 +1006,13 @@ export default function Home() {
                   >
                     Decrypt (Secure)
                   </button>
+                  <button
+                    type="button"
+                    onClick={handleTamperTestSecure}
+                    className="inline-flex h-10 items-center justify-center rounded-xl border border-rose-200 bg-rose-50 px-4 text-xs font-medium text-rose-700 shadow-sm transition hover:border-rose-400 hover:bg-rose-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                  >
+                    Tamper Test (AEAD)
+                  </button>
                 </>
               ) : null}
 
@@ -807,9 +1032,21 @@ export default function Home() {
                   >
                     Decrypt (ECDHE)
                   </button>
+                  <button
+                    type="button"
+                    onClick={handleTamperTestEcdh}
+                    className="inline-flex h-10 items-center justify-center rounded-xl border border-rose-200 bg-rose-50 px-4 text-xs font-medium text-rose-700 shadow-sm transition hover:border-rose-400 hover:bg-rose-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                  >
+                    Tamper Test (AEAD)
+                  </button>
                 </>
               ) : null}
             </div>
+            {mode !== "secure-hybrid" && mode !== "secure-ecdh" && apiStatus ? (
+              <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-700">
+                {apiStatus}
+              </div>
+            ) : null}
             {(mode === "secure-hybrid" || mode === "secure-ecdh") && secureStatus ? (
               <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-700">
                 {secureStatus}
