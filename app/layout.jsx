@@ -1,5 +1,6 @@
 import "./globals.css"
 import Link from "next/link"
+import RealtimeResearchSummary from "@/app/components/RealtimeResearchSummary"
 
 export const metadata = {
   title: "Hybrid Crypto",
@@ -63,9 +64,12 @@ export default function RootLayout({ children }) {
             {children}
           </main>
           <footer className="border-t border-slate-200 bg-white text-xs text-slate-500">
-            <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-              <span>Hybrid Cipher (Affine + Double Caesar)</span>
-              <span>Dashboard Penelitian Kriptografi</span>
+            <div className="mx-auto max-w-6xl px-4 py-3">
+              <div className="flex items-center justify-between">
+                <span>Hybrid Cipher (Affine + Double Caesar)</span>
+                <span>Dashboard Penelitian Kriptografi</span>
+              </div>
+              <RealtimeResearchSummary />
             </div>
           </footer>
         </div>

@@ -256,6 +256,11 @@ export default function CampusSimPage() {
                     const data = await res.json()
                     setSessionId(data.id)
                     setSessionNumber(data.number)
+                    try {
+                      if (typeof window !== "undefined") {
+                        window.localStorage.setItem("activeSessionId", data.id)
+                      }
+                    } catch {}
                   }
                 }}
                 className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 text-xs font-medium text-slate-700 shadow-sm transition hover:border-blue-500 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
@@ -338,6 +343,11 @@ export default function CampusSimPage() {
                     const data = await res.json()
                     setSessionId(data.id)
                     setSessionNumber(data.number)
+                    try {
+                      if (typeof window !== "undefined") {
+                        window.localStorage.setItem("activeSessionId", data.id)
+                      }
+                    } catch {}
                   }
                 }}
                 className="inline-flex h-10 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 text-xs font-medium text-slate-700 shadow-sm transition hover:border-blue-500 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white"

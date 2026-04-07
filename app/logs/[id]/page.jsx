@@ -279,6 +279,19 @@ export default function LogDetailPage() {
               </table>
             </div>
           )}
+
+          {log.metrics && log.processType !== "analysis" && (
+            <div className="rounded-lg border border-slate-800 bg-slate-900/60 p-4">
+              <h2 className="text-sm font-semibold text-slate-100">Metrics</h2>
+              <p className="mt-1 text-xs text-slate-400">
+                Rincian waktu/breakdown yang dicatat dari proses secure (mis. AES-GCM, RSA-OAEP,
+                pinning, ECDHE).
+              </p>
+              <pre className="mt-3 overflow-x-auto rounded-md bg-slate-950/50 px-3 py-2 text-[11px] text-slate-200">
+                {JSON.stringify(log.metrics, null, 2)}
+              </pre>
+            </div>
+          )}
         </div>
       )}
     </div>

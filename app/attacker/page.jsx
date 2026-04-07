@@ -233,6 +233,9 @@ export default function AttackerPage() {
     const normalizedLength = (ciphertext || "")
       .toUpperCase()
       .replace(/[^A-Z]/g, "").length
+    const dataSizeBytes =
+      typeof ciphertext === "string" ? new TextEncoder().encode(ciphertext).length : 0
+    const dataSizeKb = dataSizeBytes / 1024
 
     try {
       fetch("/api/attacks", {
@@ -241,6 +244,8 @@ export default function AttackerPage() {
         body: JSON.stringify({
           algorithm,
           ciphertextLength: normalizedLength,
+          dataSizeBytes,
+          dataSizeKb,
           totalTried,
           attackTime: duration,
           trueFoundInSearch: foundInSearch,

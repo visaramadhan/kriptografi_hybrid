@@ -17,6 +17,8 @@ export async function POST(req) {
     } = body || {}
 
     const baseText = typeof text === "string" ? text : ""
+    const dataSizeBytes = Buffer.byteLength(baseText, "utf8")
+    const dataSizeKb = dataSizeBytes / 1024
     const normalizedLength =
       typeof textLength === "number"
         ? textLength
@@ -49,6 +51,8 @@ export async function POST(req) {
       createdAt: new Date(),
       keyMode: keyMode || null,
       textLength: normalizedLength,
+      dataSizeBytes,
+      dataSizeKb,
       source: source || null,
       metrics: metrics || null,
       sessionId: typeof sessionId === "string" ? sessionId : null,

@@ -19,6 +19,8 @@ export async function GET(request) {
       id: doc._id.toString(),
       algorithm: doc.algorithm,
       ciphertextLength: doc.ciphertextLength,
+      dataSizeBytes: doc.dataSizeBytes ?? null,
+      dataSizeKb: doc.dataSizeKb ?? null,
       totalTried: doc.totalTried,
       attackTime: doc.attackTime,
       trueFoundInSearch: doc.trueFoundInSearch,
@@ -45,6 +47,8 @@ export async function POST(req) {
     const {
       algorithm,
       ciphertextLength,
+      dataSizeBytes,
+      dataSizeKb,
       totalTried,
       attackTime,
       trueFoundInSearch,
@@ -65,6 +69,8 @@ export async function POST(req) {
     const doc = {
       algorithm,
       ciphertextLength: typeof ciphertextLength === "number" ? ciphertextLength : null,
+      dataSizeBytes: typeof dataSizeBytes === "number" ? dataSizeBytes : null,
+      dataSizeKb: typeof dataSizeKb === "number" ? dataSizeKb : null,
       totalTried: typeof totalTried === "number" ? totalTried : null,
       attackTime: typeof attackTime === "number" ? attackTime : null,
       trueFoundInSearch:

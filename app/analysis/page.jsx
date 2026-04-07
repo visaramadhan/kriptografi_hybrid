@@ -41,6 +41,12 @@ export default function AnalysisPage() {
     return { length, uniqueChars }
   }, [text])
 
+  const inputSizeKb = useMemo(() => {
+    if (typeof window === "undefined") return 0
+    const bytes = new TextEncoder().encode(text || "").length
+    return bytes / 1024
+  }, [text])
+
   const summary = useMemo(() => {
     if (!results) return null
     const baseline = results.caesar.avgTime
@@ -258,6 +264,11 @@ export default function AnalysisPage() {
     const s = availableSessions.find((x) => x.id === selectedExistingSessionId)
     setSessionId(selectedExistingSessionId)
     setSessionNumber(s ? s.number : null)
+    try {
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("activeSessionId", selectedExistingSessionId)
+      }
+    } catch {}
     if (s && typeof s.runCount === "number") {
       setRuns(String(s.runCount))
     }
@@ -441,6 +452,11 @@ export default function AnalysisPage() {
                     setSessionNumber(data.number)
                     setSelectedExistingSessionId(data.id)
                     try {
+                      if (typeof window !== "undefined") {
+                        window.localStorage.setItem("activeSessionId", data.id)
+                      }
+                    } catch {}
+                    try {
                       const refreshed = await fetch("/api/sessions")
                       if (refreshed.ok) {
                         const newData = await refreshed.json()
@@ -602,6 +618,9 @@ export default function AnalysisPage() {
                         Algoritma
                       </th>
                       <th className="px-3 py-2 text-right font-semibold uppercase tracking-wide text-slate-500">
+                        Ukuran Data (KB)
+                      </th>
+                      <th className="px-3 py-2 text-right font-semibold uppercase tracking-wide text-slate-500">
                         Rata-rata (ms)
                       </th>
                       <th className="px-3 py-2 text-right font-semibold uppercase tracking-wide text-slate-500">
@@ -630,6 +649,9 @@ export default function AnalysisPage() {
                       return (
                         <tr key={row.key} className="border-t border-slate-100">
                           <td className="px-3 py-2 text-slate-700">{row.label}</td>
+                          <td className="px-3 py-2 text-right font-mono text-[11px] text-slate-700">
+                            {inputSizeKb >= 1 ? inputSizeKb.toFixed(2) : inputSizeKb.toFixed(4)}
+                          </td>
                           <td className="px-3 py-2 text-right font-mono text-[11px] text-slate-800">
                             {row.avgTime.toFixed(3)}
                           </td>
@@ -681,6 +703,9 @@ export default function AnalysisPage() {
                         Model
                       </th>
                       <th className="px-3 py-2 text-right font-semibold uppercase tracking-wide text-slate-500">
+                        Ukuran Data (KB)
+                      </th>
+                      <th className="px-3 py-2 text-right font-semibold uppercase tracking-wide text-slate-500">
                         Rata-rata (ms)
                       </th>
                       <th className="px-3 py-2 text-right font-semibold uppercase tracking-wide text-slate-500">
@@ -699,6 +724,9 @@ export default function AnalysisPage() {
                     ].map((v) => (
                       <tr key={v.key} className="border-t border-slate-100">
                         <td className="px-3 py-2 text-slate-700">{v.label}</td>
+                        <td className="px-3 py-2 text-right font-mono text-[11px] text-slate-700">
+                          {inputSizeKb >= 1 ? inputSizeKb.toFixed(2) : inputSizeKb.toFixed(4)}
+                        </td>
                         <td className="px-3 py-2 text-right font-mono text-[11px] text-slate-800">
                           {results.hybridVariants[v.key].avgTime.toFixed(3)}
                         </td>
