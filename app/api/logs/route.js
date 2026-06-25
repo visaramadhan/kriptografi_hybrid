@@ -7,6 +7,7 @@ export async function GET(request) {
     const startDate = searchParams.get("startDate")
     const endDate = searchParams.get("endDate")
     const limitParam = searchParams.get("limit")
+    const skipParam = searchParams.get("skip")
     const sessionId = searchParams.get("sessionId")
     const includeMetrics = searchParams.get("includeMetrics") === "1"
     
@@ -17,8 +18,15 @@ export async function GET(request) {
         limit = parsed
       }
     }
-    if (limit > 5000) {
-      limit = 5000
+    if (limit <= 0) limit = 5000
+    if (limit > 5000) limit = 5000
+
+    let skip = 0
+    if (skipParam !== null) {
+      const parsed = parseInt(skipParam, 10)
+      if (!isNaN(parsed) && parsed > 0) {
+        skip = parsed
+      }
     }
 
     const query = {}
@@ -68,11 +76,7 @@ export async function GET(request) {
 
     const collection = await getLogsCollection()
     // If we have a filter, we might want to default to sorted by createdAt descending
-    let cursor = collection.find(query).sort({ createdAt: -1 })
-
-    if (limit > 0) {
-      cursor = cursor.limit(limit)
-    }
+    let cursor = collection.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit)
 
     const docs = await cursor.toArray()
 

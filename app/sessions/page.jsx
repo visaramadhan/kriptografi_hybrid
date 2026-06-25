@@ -36,6 +36,15 @@ export default function SessionsPage() {
     return [...sessions].sort((a, b) => (b.number || 0) - (a.number || 0))
   }, [sessions])
 
+  const XLSX_CELL_LIMIT = 32767
+  function safeXlsxCellValue(value) {
+    if (typeof value !== "string") return value
+    if (value.length <= XLSX_CELL_LIMIT) return value
+    const suffix = `… [truncated, len=${value.length}]`
+    const head = Math.max(0, XLSX_CELL_LIMIT - suffix.length)
+    return value.slice(0, head) + suffix
+  }
+
   async function loadSessions() {
     setLoading(true)
     setError(null)
@@ -87,13 +96,32 @@ export default function SessionsPage() {
   async function exportSession(session) {
     const sessionId = session?.id
     if (!sessionId) return
-    const res = await fetch(`/api/logs?sessionId=${encodeURIComponent(sessionId)}&limit=0`)
-    if (!res.ok) {
-      const txt = await res.text()
-      throw new Error(txt || "Gagal mengambil log untuk export")
+    const pageLimit = 1000
+    const logs = []
+    let skip = 0
+    while (true) {
+      const res = await fetch(
+        `/api/logs?sessionId=${encodeURIComponent(sessionId)}&limit=${pageLimit}&skip=${skip}`,
+      )
+      if (!res.ok) {
+        let msg = `Gagal mengambil log untuk export (HTTP ${res.status})`
+        try {
+          const t = await res.text()
+          try {
+            const parsed = JSON.parse(t)
+            msg = parsed?.details || parsed?.error || msg
+          } catch {
+            if (t) msg = t
+          }
+        } catch {}
+        throw new Error(msg)
+      }
+      const data = await res.json()
+      const chunk = Array.isArray(data?.logs) ? data.logs : []
+      logs.push(...chunk)
+      if (chunk.length < pageLimit) break
+      skip += chunk.length
     }
-    const data = await res.json()
-    const logs = data.logs || []
 
     const metaRows = [
       { Field: "No Sesi", Value: session.number ?? "-" },
@@ -113,8 +141,8 @@ export default function SessionsPage() {
       Waktu: log.createdAt ? new Date(log.createdAt).toLocaleString() : "-",
       Metode: log.mode,
       Jenis: log.processType,
-      Plaintext: log.plaintext,
-      Ciphertext: log.ciphertext,
+      Plaintext: safeXlsxCellValue(log.plaintext),
+      Ciphertext: safeXlsxCellValue(log.ciphertext),
       "Waktu Proses (ms)": typeof log.timeMs === "number" ? log.timeMs : null,
       "Kunci A": log.keys?.a ?? null,
       "Kunci B": log.keys?.b ?? null,

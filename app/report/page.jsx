@@ -119,12 +119,39 @@ export default function ReportPage() {
           return
         }
 
+        async function fetchAllLogsForSession(id) {
+          const pageLimit = 1000
+          const out = []
+          let skip = 0
+          while (true) {
+            const res = await fetch(
+              `/api/logs?sessionId=${encodeURIComponent(id)}&limit=${pageLimit}&skip=${skip}&includeMetrics=1`,
+            )
+            if (!res.ok) {
+              let msg = `Gagal mengambil log (HTTP ${res.status})`
+              try {
+                const t = await res.text()
+                try {
+                  const parsed = JSON.parse(t)
+                  msg = parsed?.details || parsed?.error || msg
+                } catch {
+                  if (t) msg = t
+                }
+              } catch {}
+              throw new Error(msg)
+            }
+            const data = await res.json()
+            const chunk = Array.isArray(data?.logs) ? data.logs : []
+            out.push(...chunk)
+            if (chunk.length < pageLimit) break
+            skip += chunk.length
+          }
+          return out
+        }
+
         const logsChunks = await Promise.all(
           ids.map(async (id) => {
-            const res = await fetch(`/api/logs?sessionId=${encodeURIComponent(id)}&limit=0&includeMetrics=1`)
-            if (!res.ok) return []
-            const data = await res.json()
-            return data.logs || []
+            return fetchAllLogsForSession(id)
           })
         )
         const allLogs = logsChunks.flat()

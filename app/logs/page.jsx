@@ -149,24 +149,55 @@ export default function LogsPage() {
     loadLogs(true)
   }
 
+  const XLSX_CELL_LIMIT = 32767
+  function safeXlsxCellValue(value) {
+    if (typeof value !== "string") return value
+    if (value.length <= XLSX_CELL_LIMIT) return value
+    const suffix = `… [truncated, len=${value.length}]`
+    const head = Math.max(0, XLSX_CELL_LIMIT - suffix.length)
+    return value.slice(0, head) + suffix
+  }
+
   const handleExport = async () => {
     try {
         const params = new URLSearchParams()
         if (selectedSessionId) params.append("sessionId", selectedSessionId)
         if (startDate) params.append("startDate", startDate)
         if (endDate) params.append("endDate", endDate)
-        params.append("limit", "0") // Unlimited for export
+        const pageLimit = 1000
 
-        const res = await fetch(`/api/logs?${params.toString()}`)
-        if (!res.ok) throw new Error("Gagal mengambil data untuk export")
-        const data = await res.json()
+        const allLogs = []
+        let skip = 0
+        while (true) {
+          params.set("limit", String(pageLimit))
+          params.set("skip", String(skip))
+          const res = await fetch(`/api/logs?${params.toString()}`)
+          if (!res.ok) {
+            let msg = `Gagal mengambil data untuk export (HTTP ${res.status})`
+            try {
+              const t = await res.text()
+              try {
+                const parsed = JSON.parse(t)
+                msg = parsed?.details || parsed?.error || msg
+              } catch {
+                if (t) msg = t
+              }
+            } catch {}
+            throw new Error(msg)
+          }
+          const data = await res.json()
+          const chunk = Array.isArray(data?.logs) ? data.logs : []
+          allLogs.push(...chunk)
+          if (chunk.length < pageLimit) break
+          skip += chunk.length
+        }
         
-        if (!data.logs || data.logs.length === 0) {
+        if (allLogs.length === 0) {
             alert("Tidak ada data untuk diexport")
             return
         }
 
-        const rows = data.logs.map(log => ({
+        const rows = allLogs.map(log => ({
             "ID": log.id,
             "Waktu": log.createdAt ? new Date(log.createdAt).toLocaleString() : "-",
             "Metode": log.mode,
@@ -175,8 +206,8 @@ export default function LogsPage() {
               const s = sessions.find((x) => x.id === log.sessionId)
               return s ? `No ${s.number}` : "-"
             })(),
-            "Plaintext": log.plaintext,
-            "Ciphertext": log.ciphertext,
+            "Plaintext": safeXlsxCellValue(log.plaintext),
+            "Ciphertext": safeXlsxCellValue(log.ciphertext),
             "Waktu Proses (ms)": log.timeMs,
             "Kunci A": log.keys?.a,
             "Kunci B": log.keys?.b,

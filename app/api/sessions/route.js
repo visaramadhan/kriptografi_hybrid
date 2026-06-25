@@ -8,6 +8,7 @@ export async function GET() {
     const sessions = docs.map((d) => ({
       id: d._id.toString(),
       number: d.number,
+      name: typeof d.name === "string" && d.name ? d.name : null,
       algorithm: d.algorithm,
       keyMode: d.keyMode,
       textLength: d.textLength,
@@ -29,7 +30,7 @@ export async function GET() {
 export async function POST(req) {
   try {
     const body = await req.json()
-    const { algorithm, keyMode, textLength, runCount, testType, group, groupNo } = body || {}
+    const { name, algorithm, keyMode, textLength, runCount, testType, group, groupNo } = body || {}
 
     const col = await getSessionsCollection()
     const last = await col.find({}).project({ number: 1 }).sort({ number: -1 }).limit(1).toArray()
@@ -37,6 +38,7 @@ export async function POST(req) {
 
     const doc = {
       number: nextNumber,
+      name: typeof name === "string" && name ? name : null,
       algorithm: algorithm || null,
       keyMode: keyMode || null,
       textLength: typeof textLength === "number" ? textLength : null,
