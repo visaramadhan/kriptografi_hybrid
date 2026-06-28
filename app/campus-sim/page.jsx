@@ -124,7 +124,7 @@ export default function CampusSimPage() {
   const [datasetStatus, setDatasetStatus] = useState("Memuat dataset Excel...")
   const [field, setField] = useState("attendance")
   const [mode, setMode] = useState("hybrid")
-  const [keyMode, setKeyMode] = useState("timestamp")
+  const [keyMode, setKeyMode] = useState("dynamic")
   const [a, setA] = useState(invertibleAValues[1])
   const [b, setB] = useState(8)
   const [k1, setK1] = useState(3)
@@ -200,6 +200,7 @@ export default function CampusSimPage() {
   const ciphertextStats = cipherStats(ciphertext)
 
   const isSecure = mode === "secure-hybrid" || mode === "secure-ecdh"
+  const isStaticKeyMode = keyMode === "static"
 
   const buildPlaintext = () => {
     if (field === "nilai") {
@@ -222,13 +223,7 @@ export default function CampusSimPage() {
     let k1Used = k1
     let k2Used = k2
 
-    if (keyMode === "random") {
-      aUsed =
-        invertibleAValues[Math.floor(Math.random() * invertibleAValues.length)]
-      bUsed = Math.floor(Math.random() * 26)
-      k1Used = Math.floor(Math.random() * 26)
-      k2Used = Math.floor(Math.random() * 26)
-    } else if (keyMode === "timestamp") {
+    if (keyMode === "dynamic") {
       const now = Date.now()
       aUsed = invertibleAValues[now % invertibleAValues.length]
       bUsed = now % 26
@@ -448,7 +443,7 @@ export default function CampusSimPage() {
       const pinEnd = performance.now()
       const rsaKey = await importRsaOaepPublicKey(spkiDerB64)
 
-      const staticMode = keyMode === "manual"
+      const staticMode = keyMode === "static"
       const aesKeyRaw = staticMode
         ? await getOrCreateStaticAesKeyRaw(activeSessionId)
         : await createRotatingAesKeyRaw()
@@ -727,6 +722,12 @@ export default function CampusSimPage() {
     return v
   }
 
+  function keyModeLabel(v) {
+    if (v === "static") return "Statis"
+    if (v === "dynamic") return "Dinamis"
+    return v
+  }
+
   function fieldLabel(v) {
     if (v === "attendance") return "Data Kehadiran"
     if (v === "nilai") return "Data Nilai"
@@ -886,7 +887,7 @@ export default function CampusSimPage() {
     const { spkiDerB64, fingerprintHex } = await getServerPublicKey()
     const rsaKey = await importRsaOaepPublicKey(spkiDerB64)
 
-    const staticMode = keyMode === "manual"
+    const staticMode = keyMode === "static"
     const aesKeyRaw = staticMode
       ? await getOrCreateStaticAesKeyRaw(activeSessionId)
       : await createRotatingAesKeyRaw()
@@ -1220,7 +1221,7 @@ export default function CampusSimPage() {
     const rows = batchResults.map((r) => ({
       Skenario: `${r.name} - ${fieldLabel(r.fieldType)} - ${algorithmLabel(r.algorithm)}`,
       "Jenis Algoritma": algorithmLabel(r.algorithm),
-      "Mode Pengelolaan Kunci": r.keyMode,
+      "Mode Pengelolaan Kunci": keyModeLabel(r.keyMode),
       "Panjang Plaintext": r.plaintextLength,
       "Waktu Enkripsi": typeof r.encryptMs === "number" ? Number(r.encryptMs.toFixed(3)) : null,
       "Waktu Dekripsi": typeof r.decryptMs === "number" ? Number(r.decryptMs.toFixed(3)) : null,
@@ -1418,9 +1419,8 @@ export default function CampusSimPage() {
                   value={keyMode}
                   onChange={(e) => setKeyMode(e.target.value)}
                 >
-                  <option value="manual">Manual</option>
-                  <option value="random">Random</option>
-                  <option value="timestamp">Timestamp</option>
+                  <option value="static">Statis</option>
+                  <option value="dynamic">Dinamis</option>
                 </select>
               </div>
               <div className="space-y-1">
@@ -1583,6 +1583,7 @@ export default function CampusSimPage() {
                   type="number"
                   value={a}
                   onChange={(e) => setA(Number(e.target.value))}
+                  disabled={!isStaticKeyMode}
                   className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 />
               </div>
@@ -1594,6 +1595,7 @@ export default function CampusSimPage() {
                   type="number"
                   value={b}
                   onChange={(e) => setB(Number(e.target.value))}
+                  disabled={!isStaticKeyMode}
                   className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 />
               </div>
@@ -1605,6 +1607,7 @@ export default function CampusSimPage() {
                   type="number"
                   value={k1}
                   onChange={(e) => setK1(Number(e.target.value))}
+                  disabled={!isStaticKeyMode}
                   className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 />
               </div>
@@ -1616,6 +1619,7 @@ export default function CampusSimPage() {
                   type="number"
                   value={k2}
                   onChange={(e) => setK2(Number(e.target.value))}
+                  disabled={!isStaticKeyMode}
                   className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 />
               </div>
@@ -1628,12 +1632,16 @@ export default function CampusSimPage() {
                   value={keyMode}
                   onChange={(e) => setKeyMode(e.target.value)}
                 >
-                  <option value="manual">Manual</option>
-                  <option value="random">Random</option>
-                  <option value="timestamp">Timestamp</option>
+                  <option value="static">Statis</option>
+                  <option value="dynamic">Dinamis</option>
                 </select>
               </div>
             </div>
+            <p className="mt-3 text-[11px] text-slate-500">
+              {isStaticKeyMode
+                ? "Mode statis memakai nilai a, b, k1, dan k2 yang Anda tetapkan untuk seluruh proses enkripsi/dekripsi."
+                : "Mode dinamis menghasilkan nilai kunci berbeda secara otomatis pada setiap proses, termasuk saat batch berjalan."}
+            </p>
 
             <div className="mt-4 flex flex-wrap gap-3">
               {mode !== "secure-hybrid" && mode !== "secure-ecdh" ? (
@@ -1915,7 +1923,7 @@ export default function CampusSimPage() {
                           <div className="font-mono text-[11px] text-slate-500">{r.nim}</div>
                         </td>
                         <td className="px-3 py-2">{algorithmLabel(r.algorithm)}</td>
-                        <td className="px-3 py-2">{r.keyMode}</td>
+                        <td className="px-3 py-2">{keyModeLabel(r.keyMode)}</td>
                         <td className="px-3 py-2 font-mono">{r.plaintextLength}</td>
                         <td className="px-3 py-2 font-mono">
                           {typeof r.encryptMs === "number" ? `${r.encryptMs.toFixed(2)} ms` : "—"}
@@ -2032,14 +2040,15 @@ export default function CampusSimPage() {
               </div>
               <div>
                 <p className="font-semibold text-slate-800">
-                  Manajemen Kunci Dinamis
+                  Manajemen Kunci
                 </p>
                 <p>
-                  Mode kunci: <span className="font-mono">{keyMode}</span> dengan nilai{" "}
+                  Mode kunci: <span className="font-mono">{keyModeLabel(keyMode)}</span> dengan nilai{" "}
                   <span className="font-mono">
                     a={a}, b={b}, k1={k1}, k2={k2}
                   </span>
-                  . Random dan Timestamp merepresentasikan skema kunci dinamis.
+                  . Mode statis memakai nilai tetap, sedangkan mode dinamis menghasilkan
+                  kunci berbeda otomatis di setiap proses.
                 </p>
               </div>
               <div>
