@@ -3,9 +3,7 @@ import Link from "next/link"
 export default function NotFound() {
   return (
     <div className="mx-auto flex max-w-md flex-1 flex-col items-center justify-center py-24 text-center">
-      <h1 className="text-5xl font-semibold tracking-tight text-slate-100">
-        404
-      </h1>
+      <h1 className="text-5xl font-semibold tracking-tight text-slate-100">404</h1>
       <p className="mt-3 text-sm text-slate-300">
         Halaman yang Anda cari tidak ditemukan atau sudah tidak tersedia.
       </p>
@@ -18,4 +16,3 @@ export default function NotFound() {
     </div>
   )
 }
-
