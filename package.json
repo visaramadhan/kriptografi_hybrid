@@ -7,7 +7,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test:hybrid": "node test-hybrid.js"
+    "test:hybrid": "node test-hybrid.js",
+    "test:sim": "node --test scripts/sim.spec.mjs"
   },
   "dependencies": {
     "mongodb": "latest",

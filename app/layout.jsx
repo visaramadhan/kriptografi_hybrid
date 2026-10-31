@@ -28,6 +28,12 @@ export default function RootLayout({ children }) {
                   Simulasi Kampus
                 </Link>
                 <Link
+                  href="/simulation"
+                  className="transition-colors hover:text-blue-600"
+                >
+                  Simulasi Akademik
+                </Link>
+                <Link
                   href="/attacker"
                   className="transition-colors hover:text-blue-600"
                 >
